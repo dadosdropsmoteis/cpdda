@@ -5,8 +5,37 @@ import * as XLSX from 'xlsx';
 export default function App() {
   const [dados, setDados] = useState([]);
   const [filialSelecionada, setFilialSelecionada] = useState('todas');
+  const [filiaisSelecionadas, setFiliaisSelecionadas] = useState([]);
   const [datasSelecionadas, setDatasSelecionadas] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [tabelaTransposta, setTabelaTransposta] = useState(false);
+
+  // Ordem customizada das filiais
+  const ordemFiliais = {
+    'Goiania': 1,
+    'Villages': 2,
+    'Brasilia': 3,
+    'Campinas': 4,
+    'Vale dos Sinos': 5,
+    'Porto Alegre': 6,
+    'POA Zona Norte': 7,
+    'Barretos': 8,
+    'Barretos Express': 9,
+    'Rio Preto': 10,
+    'Poa Zona Sul': 11,
+    'Palhoca': 12,
+    'Tubarao': 13,
+    'Araraquara': 14,
+    'Bangalo': 15,
+    'Zeax': 16,
+    'RV Bangalo': 17,
+    'Camelot': 18,
+    'Xangai': 19,
+    'Novo Hamburgo': 20,
+    'Ribeirao Preto': 21,
+    'Caxias do Sul': 22,
+    'Zaya': 23
+  };
 
   const processarArquivo = (e) => {
     const arquivo = e.target.files[0];
@@ -56,7 +85,11 @@ export default function App() {
 
   const obterFiliais = () => {
     const filiais = [...new Set(dados.map(item => buscarCampo(item, 'Filial', 'filial', 'FILIAL')))].filter(Boolean);
-    return filiais.sort();
+    return filiais.sort((a, b) => {
+      const ordemA = ordemFiliais[a] || 999;
+      const ordemB = ordemFiliais[b] || 999;
+      return ordemA - ordemB;
+    });
   };
 
   // Busca campo de forma case-insensitive e ignorando espaços extras nos nomes
@@ -120,8 +153,9 @@ export default function App() {
     });
 
     return Object.values(grupos).sort((a, b) => {
-      if (a.filial < b.filial) return -1;
-      if (a.filial > b.filial) return 1;
+      const ordemA = ordemFiliais[a.filial] || 999;
+      const ordemB = ordemFiliais[b.filial] || 999;
+      if (ordemA !== ordemB) return ordemA - ordemB;
       const [diaA, mesA, anoA] = a.data.split('/');
       const [diaB, mesB, anoB] = b.data.split('/');
       return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
@@ -130,9 +164,9 @@ export default function App() {
 
   const dadosAgrupados = agruparPorDiaEFilial();
 
-  const dadosFiltrados = filialSelecionada === 'todas'
-    ? dadosAgrupados
-    : dadosAgrupados.filter(d => d.filial === filialSelecionada);
+  const dadosFiltrados = filiaisSelecionadas.length > 0
+    ? dadosAgrupados.filter(d => filiaisSelecionadas.includes(d.filial))
+    : dadosAgrupados;
 
   const datasUnicas = [...new Set(dadosAgrupados.map(d => d.data))].sort((a, b) => {
     const [diaA, mesA, anoA] = a.split('/');
@@ -150,7 +184,13 @@ export default function App() {
     );
   };
 
-  const filiaisVisiveis = filialSelecionada === 'todas' ? obterFiliais() : [filialSelecionada];
+  const toggleFilial = (filial) => {
+    setFiliaisSelecionadas(prev =>
+      prev.includes(filial) ? prev.filter(f => f !== filial) : [...prev, filial]
+    );
+  };
+
+  const filiaisVisiveis = filiaisSelecionadas.length > 0 ? filiaisSelecionadas : obterFiliais();
 
   const lookup = {};
   dadosAgrupados.forEach(item => {
@@ -186,13 +226,81 @@ export default function App() {
     <>
       <style>{`
         @media print {
-          @page { size: A4 landscape; margin: 10mm; }
+          @page { 
+            size: A4 landscape; 
+            margin: 6mm; 
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .no-print { display: none !important; }
-          .print-area { box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; }
-          body { background: white !important; }
-          table { font-size: 10px !important; }
-          th, td { padding: 4px 6px !important; }
-          .sticky-col { position: static !important; }
+          .print-area { 
+            box-shadow: none !important; 
+            border-radius: 0 !important; 
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          body { 
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          h1 {
+            font-size: 14px !important;
+            margin-bottom: 4px !important;
+          }
+          h2 {
+            font-size: 10px !important;
+            margin-top: 4px !important;
+            margin-bottom: 3px !important;
+          }
+          /* Reduzir tamanho do gráfico no PDF */
+          .grafico-print {
+            height: 140px !important;
+            margin-bottom: 6px !important;
+          }
+          .recharts-wrapper {
+            height: 140px !important;
+          }
+          .recharts-surface {
+            height: 140px !important;
+          }
+          .table-container {
+            max-height: none !important;
+            overflow: visible !important;
+            page-break-inside: avoid;
+          }
+          table { 
+            font-size: 6.5px !important;
+            width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+          }
+          th, td { 
+            padding: 1.5px 2px !important;
+            font-size: 6.5px !important;
+            line-height: 1.1 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+          }
+          th {
+            background-color: #4f46e5 !important;
+            color: white !important;
+          }
+          .sticky-col { 
+            position: static !important; 
+          }
+          .sticky-col-header {
+            position: static !important;
+          }
+          .sticky-header th,
+          .sticky-header-second th {
+            position: static !important;
+          }
         }
         .table-container {
           max-height: 500px;
@@ -264,17 +372,35 @@ export default function App() {
                 {/* Filtros */}
                 <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Filtrar por filial</label>
-                    <select
-                      value={filialSelecionada}
-                      onChange={(e) => setFilialSelecionada(e.target.value)}
-                      className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="todas">Todas as filiais</option>
-                      {obterFiliais().map(filial => (
-                        <option key={filial} value={filial}>{filial}</option>
-                      ))}
-                    </select>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Filtrar por filial</label>
+                      {filiaisSelecionadas.length > 0 && (
+                        <button onClick={() => setFiliaisSelecionadas([])} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                          Limpar ({filiaisSelecionadas.length} selecionada{filiaisSelecionadas.length > 1 ? 's' : ''})
+                        </button>
+                      )}
+                    </div>
+                    <div className="border border-gray-300 rounded-md p-3 max-h-36 overflow-y-auto bg-white">
+                      <div className="flex flex-wrap gap-2">
+                        {obterFiliais().map(filial => {
+                          const sel = filiaisSelecionadas.includes(filial);
+                          return (
+                            <button
+                              key={filial}
+                              onClick={() => toggleFilial(filial)}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                sel ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'
+                              }`}
+                            >
+                              {filial}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {filiaisSelecionadas.length === 0 ? 'Todas as filiais exibidas' : `${filiaisSelecionadas.length} de ${obterFiliais().length} filiais selecionadas`}
+                    </p>
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -326,9 +452,9 @@ export default function App() {
                 </div>
 
                 {/* Gráfico combinado */}
-                <div className="mb-8">
+                <div className="mb-8 grafico-print">
                   <h2 className="text-xl font-semibold text-gray-800 mb-4">Quantidade de Registros e Valor Total por Data</h2>
-                  <ResponsiveContainer width="100%" height={350}>
+                  <ResponsiveContainer width="100%" height={280}>
                     <ComposedChart data={dadosParaGrafico} margin={{ top: 10, right: 40, left: 10, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="data" angle={-45} textAnchor="end" height={80} />
@@ -359,8 +485,20 @@ export default function App() {
 
                 {/* Tabela Pivô */}
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-800 mb-4">Detalhamento por Filial e Data</h2>
-                  <div className="table-container">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-800">Detalhamento por Filial e Data</h2>
+                    <button
+                      onClick={() => setTabelaTransposta(!tabelaTransposta)}
+                      className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                      {tabelaTransposta ? 'Visualização Normal' : 'Inverter Eixos'}
+                    </button>
+                  </div>
+                  <div className="table-container">{!tabelaTransposta ? (
+                    // Tabela normal: Datas nas linhas, Filiais nas colunas
                     <table className="min-w-full border border-gray-200 text-sm">
                       <thead>
                         <tr className="sticky-header">
@@ -440,6 +578,88 @@ export default function App() {
                         </tr>
                       </tbody>
                     </table>
+                  ) : (
+                    // Tabela transposta: Filiais nas linhas, Datas nas colunas
+                    <table className="min-w-full border border-gray-200 text-sm">
+                      <thead>
+                        <tr className="sticky-header">
+                          <th rowSpan={2} className="sticky-col-header border border-gray-300 bg-indigo-600 text-white px-4 py-3 text-left font-semibold min-w-32">
+                            Filial
+                          </th>
+                          {datasVisiveis.map(data => (
+                            <th key={data} colSpan={2} className="border border-gray-300 bg-indigo-500 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">
+                              {data}
+                            </th>
+                          ))}
+                          <th colSpan={2} className="border border-gray-300 bg-indigo-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">
+                            Total Geral
+                          </th>
+                        </tr>
+                        <tr className="sticky-header-second">
+                          {datasVisiveis.map(data => (
+                            <React.Fragment key={data}>
+                              <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                              <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
+                            </React.Fragment>
+                          ))}
+                          <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                          <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filiaisVisiveis.map((filial, idx) => {
+                          const totalQtd = datasVisiveis.reduce((s, d) => s + (lookup[`${filial}_${d}`]?.quantidade || 0), 0);
+                          const totalVal = datasVisiveis.reduce((s, d) => s + (lookup[`${filial}_${d}`]?.valorTotal || 0), 0);
+                          return (
+                            <tr key={filial} className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50 hover:bg-blue-50'}>
+                              <td className="sticky-col border border-gray-200 px-4 py-3 font-medium text-gray-800 whitespace-nowrap">{filial}</td>
+                              {datasVisiveis.map(data => {
+                                const entry = lookup[`${filial}_${data}`];
+                                return (
+                                  <React.Fragment key={data}>
+                                    <td className="border border-gray-200 px-3 py-3 text-center text-gray-700">
+                                      {entry ? entry.quantidade : <span className="text-gray-300">—</span>}
+                                    </td>
+                                    <td className="border border-gray-200 px-3 py-3 text-center text-gray-700 whitespace-nowrap">
+                                      {entry ? `R$ ${fmt(entry.valorTotal)}` : <span className="text-gray-300">—</span>}
+                                    </td>
+                                  </React.Fragment>
+                                );
+                              })}
+                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-indigo-800 bg-indigo-50">
+                                {totalQtd || <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-indigo-800 bg-indigo-50 whitespace-nowrap">
+                                {totalVal > 0 ? `R$ ${fmt(totalVal)}` : <span className="text-gray-300">—</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {/* Linha de totais */}
+                        <tr className="bg-indigo-50 font-semibold border-t-2 border-indigo-300">
+                          <td className="sticky-col border border-gray-300 px-4 py-3 text-indigo-800 bg-indigo-50">Total</td>
+                          {datasVisiveis.map(data => {
+                            const qtd = filiaisVisiveis.reduce((s, f) => s + (lookup[`${f}_${data}`]?.quantidade || 0), 0);
+                            const val = filiaisVisiveis.reduce((s, f) => s + (lookup[`${f}_${data}`]?.valorTotal || 0), 0);
+                            return (
+                              <React.Fragment key={data}>
+                                <td className="border border-gray-300 px-3 py-3 text-center text-indigo-800">{qtd || <span className="text-gray-300">—</span>}</td>
+                                <td className="border border-gray-300 px-3 py-3 text-center text-indigo-800 whitespace-nowrap">
+                                  {val > 0 ? `R$ ${fmt(val)}` : <span className="text-gray-300">—</span>}
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
+                          <td className="border border-gray-300 px-3 py-3 text-center text-white bg-indigo-700 font-bold">
+                            {filiaisVisiveis.reduce((s, f) => s + datasVisiveis.reduce((ss, d) => ss + (lookup[`${f}_${d}`]?.quantidade || 0), 0), 0)}
+                          </td>
+                          <td className="border border-gray-300 px-3 py-3 text-center text-white bg-indigo-700 font-bold whitespace-nowrap">
+                            R$ {fmt(filiaisVisiveis.reduce((s, f) => s + datasVisiveis.reduce((ss, d) => ss + (lookup[`${f}_${d}`]?.valorTotal || 0), 0), 0))}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
                   </div>
                 </div>
               </>

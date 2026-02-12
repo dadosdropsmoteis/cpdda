@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 📊 Dashboard Financeiro - Análise por Filiais
 
 Dashboard interativo para análise de dados financeiros por filiais, com visualização de gráficos e tabelas dinâmicas.
@@ -67,3 +68,6 @@ MIT
 ## 👤 Autor
 
 Seu Nome
+=======
+# cpdda
+>>>>>>> 172a004ea0203a54c7f07811e0bd0796827caaf7
