@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line } from 'recharts';
+import { ComposedChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line } from 'recharts';
 import * as XLSX from 'xlsx';
 
 export default function App() {
@@ -9,6 +9,10 @@ export default function App() {
   const [datasSelecionadas, setDatasSelecionadas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tabelaTransposta, setTabelaTransposta] = useState(false);
+  const [tipoGrafico, setTipoGrafico] = useState('data'); // 'data' ou 'filial'
+  const [tabela2Transposta, setTabela2Transposta] = useState(false);
+  const [tabela3Transposta, setTabela3Transposta] = useState(false);
+  const [tabela4Transposta, setTabela4Transposta] = useState(false);
 
   // Ordem customizada das filiais
   const ordemFiliais = {
@@ -46,33 +50,101 @@ export default function App() {
 
     reader.onload = (evento) => {
       try {
-        const workbook = XLSX.read(evento.target.result, { type: 'binary' });
-
-        const nomeAba = 'Já Existentes';
-
-        if (!workbook.SheetNames.includes(nomeAba)) {
-          alert(`Aba "${nomeAba}" não encontrada. Abas disponíveis: ${workbook.SheetNames.join(', ')}`);
+        // Processar CSV
+        const texto = evento.target.result;
+        const linhas = texto.split('\n').filter(l => l.trim());
+        
+        if (linhas.length < 2) {
+          alert('Arquivo CSV vazio ou inválido.');
           setLoading(false);
           return;
         }
 
-        const worksheet = workbook.Sheets[nomeAba];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+          // Pular linha 1 (cabeçalho) e processar dados
+          const dadosProcessados = linhas.slice(1).map((linha, idx) => {
+            // Dividir por ponto-e-vírgula de forma mais simples
+            const colunas = [];
+            let colunaAtual = '';
+            let dentroAspas = false;
+            
+            for (let i = 0; i < linha.length; i++) {
+              const char = linha[i];
+              
+              if (char === '"') {
+                dentroAspas = !dentroAspas;
+              } else if (char === ';' && !dentroAspas) {
+                colunas.push(colunaAtual);
+                colunaAtual = '';
+              } else {
+                colunaAtual += char;
+              }
+            }
+            colunas.push(colunaAtual); // última coluna
+            
+            const limpar = (str) => str ? str.replace(/^"|"$/g, '').trim() : '';
+            
+            // Converter data de YYYY-MM-DD para DD/MM/YYYY
+            const dataRaw = limpar(colunas[17]);
+            let dataFormatada = dataRaw;
+            if (dataRaw && dataRaw.includes('-')) {
+              const partes = dataRaw.split('-');
+              if (partes.length === 3) {
+                dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+              }
+            }
+            
+            // Converter valor: remover últimos 4 dígitos, depois inserir ponto antes dos últimos 2
+            const valorRaw = limpar(colunas[29]);
+            let valorConvertido = '';
+            if (valorRaw && valorRaw !== '') {
+              // Remover tudo exceto dígitos e o sinal negativo
+              let valorLimpo = valorRaw.replace(/[^\d-]/g, '');
+              
+              // Verificar se é negativo
+              const isNegativo = valorLimpo.startsWith('-');
+              if (isNegativo) valorLimpo = valorLimpo.substring(1);
+              
+              // Remover os 4 últimos dígitos
+              if (valorLimpo.length >= 4) {
+                valorLimpo = valorLimpo.slice(0, -4);
+              }
+              
+              // Inserir ponto decimal antes dos últimos 2 dígitos (centavos)
+              if (valorLimpo.length > 2) {
+                valorLimpo = valorLimpo.slice(0, -2) + '.' + valorLimpo.slice(-2);
+              } else if (valorLimpo.length === 2) {
+                valorLimpo = '0.' + valorLimpo;
+              } else if (valorLimpo.length === 1) {
+                valorLimpo = '0.0' + valorLimpo;
+              }
+              
+              const valorNum = parseFloat(valorLimpo);
+              
+              if (!isNaN(valorNum)) {
+                const valorFinal = Math.abs(valorNum);
+                valorConvertido = valorFinal.toFixed(2).replace('.', ',');
+              }
+            }
+            
+            return {
+              'Filial': limpar(colunas[3]),
+              'Categoria': limpar(colunas[6]),
+              'Vencimento': dataFormatada,
+              'Valor': valorConvertido,
+              'Conta Corrente': limpar(colunas[54]),
+              'Forma de Pagamento': limpar(colunas[81])
+            };
+          }).filter(item => item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
-        if (jsonData.length === 0) {
-          alert('A aba "Já Existentes" está vazia.');
+          if (dadosProcessados.length === 0) {
+            alert('Nenhum dado válido encontrado no CSV.');
+            setLoading(false);
+            return;
+          }
+
+          setDados(dadosProcessados);
+          setDatasSelecionadas([]);
           setLoading(false);
-          return;
-        }
-
-        // --- Diagnóstico de colunas (descomentar para depuração) ---
-        // console.log('Colunas:', Object.keys(jsonData[0]));
-        // console.log('1ª linha:', jsonData[0]);
-        // -----------------------------------------------------------
-
-        setDados(jsonData);
-        setDatasSelecionadas([]);
-        setLoading(false);
       } catch (erro) {
         console.error('Erro ao processar arquivo:', erro);
         alert('Erro ao processar o arquivo. Verifique o formato.');
@@ -80,7 +152,7 @@ export default function App() {
       }
     };
 
-    reader.readAsBinaryString(arquivo);
+    reader.readAsText(arquivo, 'UTF-8');
   };
 
   const obterFiliais = () => {
@@ -162,13 +234,189 @@ export default function App() {
     });
   };
 
+  // Função específica para Remessa Bancária (Forma de Pagamento não vazia)
+  const agruparRemessaBancaria = () => {
+    const grupos = {};
+
+    dados.forEach(item => {
+      // Filtrar apenas itens com Forma de Pagamento preenchida
+      const formaPagamento = buscarCampo(item, 'Forma de Pagamento', 'forma de pagamento', 'FORMA DE PAGAMENTO');
+      if (!formaPagamento || formaPagamento.trim() === '' || formaPagamento === 'N/D') return;
+
+      const filial = buscarCampo(item, 'Filial', 'filial', 'FILIAL') || 'Sem Filial';
+      const dataVencimento = buscarCampo(item, 'Vencimento', 'vencimento', 'VENCIMENTO', 'Data', 'data', 'DATA', 'data_vencimento', 'DATA_VENCIMENTO', 'DataVencimento');
+      const valorRaw = buscarCampo(item, 'Valor', 'valor', 'VALOR');
+      const valor = parsearValor(valorRaw);
+
+      if (!dataVencimento) return;
+
+      let dataFormatada;
+      if (typeof dataVencimento === 'number') {
+        const d = XLSX.SSF.parse_date_code(dataVencimento);
+        dataFormatada = `${String(d.d).padStart(2, '0')}/${String(d.m).padStart(2, '0')}/${d.y}`;
+      } else {
+        dataFormatada = String(dataVencimento);
+      }
+
+      const chave = `${filial}_${dataFormatada}`;
+      if (!grupos[chave]) {
+        grupos[chave] = { data: dataFormatada, filial, quantidade: 0, valorTotal: 0 };
+      }
+      grupos[chave].quantidade += 1;
+      grupos[chave].valorTotal += valor;
+    });
+
+    return Object.values(grupos).sort((a, b) => {
+      const ordemA = ordemFiliais[a.filial] || 999;
+      const ordemB = ordemFiliais[b.filial] || 999;
+      if (ordemA !== ordemB) return ordemA - ordemB;
+      const [diaA, mesA, anoA] = a.data.split('/');
+      const [diaB, mesB, anoB] = b.data.split('/');
+      return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
+    });
+  };
+
+  // Função para Despesas com Pessoal (Forma de Pagamento vazia + Categorias específicas)
+  const agruparDespesasPessoal = () => {
+    const grupos = {};
+    const categoriasPermitidas = ['Adiantamento', 'Férias', 'Indenizações e Aviso Prévio', 'Rescisões', 'Salários', 'Seguros de Vida'];
+
+    dados.forEach(item => {
+      const formaPagamento = buscarCampo(item, 'Forma de Pagamento', 'forma de pagamento', 'FORMA DE PAGAMENTO');
+      const categoria = buscarCampo(item, 'Categoria', 'categoria', 'CATEGORIA');
+      
+      if (formaPagamento && formaPagamento.trim() !== '' && formaPagamento !== 'N/D') return;
+      if (!categoria || !categoriasPermitidas.includes(categoria.trim())) return;
+
+      const filial = buscarCampo(item, 'Filial', 'filial', 'FILIAL') || 'Sem Filial';
+      const dataVencimento = buscarCampo(item, 'Vencimento', 'vencimento', 'VENCIMENTO', 'Data', 'data', 'DATA');
+      const valorRaw = buscarCampo(item, 'Valor', 'valor', 'VALOR');
+      const valor = parsearValor(valorRaw);
+
+      if (!dataVencimento) return;
+
+      let dataFormatada = typeof dataVencimento === 'number'
+        ? (() => { const d = XLSX.SSF.parse_date_code(dataVencimento); return `${String(d.d).padStart(2, '0')}/${String(d.m).padStart(2, '0')}/${d.y}`; })()
+        : String(dataVencimento);
+
+      const chave = `${filial}_${dataFormatada}`;
+      if (!grupos[chave]) grupos[chave] = { data: dataFormatada, filial, quantidade: 0, valorTotal: 0 };
+      grupos[chave].quantidade += 1;
+      grupos[chave].valorTotal += valor;
+    });
+
+    return Object.values(grupos).sort((a, b) => {
+      const ordemA = ordemFiliais[a.filial] || 999;
+      const ordemB = ordemFiliais[b.filial] || 999;
+      if (ordemA !== ordemB) return ordemA - ordemB;
+      const [diaA, mesA, anoA] = a.data.split('/');
+      const [diaB, mesB, anoB] = b.data.split('/');
+      return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
+    });
+  };
+
+  // Função para Despesas Financeiras/Impostos (Forma de Pagamento vazia + Categorias específicas)
+  const agruparDespesasFinanceiras = () => {
+    const grupos = {};
+    const categoriasPermitidas = ['Energia Eletrica e Gas', 'ICMS', 'Impostos e Taxas Diversas', 'ISS', 'Pagamento de Empréstimos', 'Seguros'];
+
+    dados.forEach(item => {
+      const formaPagamento = buscarCampo(item, 'Forma de Pagamento', 'forma de pagamento', 'FORMA DE PAGAMENTO');
+      const categoria = buscarCampo(item, 'Categoria', 'categoria', 'CATEGORIA');
+      
+      if (formaPagamento && formaPagamento.trim() !== '' && formaPagamento !== 'N/D') return;
+      if (!categoria || !categoriasPermitidas.includes(categoria.trim())) return;
+
+      const filial = buscarCampo(item, 'Filial', 'filial', 'FILIAL') || 'Sem Filial';
+      const dataVencimento = buscarCampo(item, 'Vencimento', 'vencimento', 'VENCIMENTO', 'Data', 'data', 'DATA');
+      const valorRaw = buscarCampo(item, 'Valor', 'valor', 'VALOR');
+      const valor = parsearValor(valorRaw);
+
+      if (!dataVencimento) return;
+
+      let dataFormatada = typeof dataVencimento === 'number'
+        ? (() => { const d = XLSX.SSF.parse_date_code(dataVencimento); return `${String(d.d).padStart(2, '0')}/${String(d.m).padStart(2, '0')}/${d.y}`; })()
+        : String(dataVencimento);
+
+      const chave = `${filial}_${dataFormatada}`;
+      if (!grupos[chave]) grupos[chave] = { data: dataFormatada, filial, quantidade: 0, valorTotal: 0 };
+      grupos[chave].quantidade += 1;
+      grupos[chave].valorTotal += valor;
+    });
+
+    return Object.values(grupos).sort((a, b) => {
+      const ordemA = ordemFiliais[a.filial] || 999;
+      const ordemB = ordemFiliais[b.filial] || 999;
+      if (ordemA !== ordemB) return ordemA - ordemB;
+      const [diaA, mesA, anoA] = a.data.split('/');
+      const [diaB, mesB, anoB] = b.data.split('/');
+      return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
+    });
+  };
+
+  // Função para Despesas com Cartão de Crédito (Conta Corrente contém "Master" ou "Visa")
+  const agruparDespesasCartao = () => {
+    const grupos = {};
+
+    dados.forEach(item => {
+      const contaCorrente = buscarCampo(item, 'Conta Corrente', 'conta corrente', 'CONTA CORRENTE') || '';
+      
+      if (!contaCorrente.toLowerCase().includes('master') && !contaCorrente.toLowerCase().includes('visa')) return;
+
+      const filial = buscarCampo(item, 'Filial', 'filial', 'FILIAL') || 'Sem Filial';
+      const dataVencimento = buscarCampo(item, 'Vencimento', 'vencimento', 'VENCIMENTO', 'Data', 'data', 'DATA');
+      const valorRaw = buscarCampo(item, 'Valor', 'valor', 'VALOR');
+      const valor = parsearValor(valorRaw);
+
+      if (!dataVencimento) return;
+
+      let dataFormatada = typeof dataVencimento === 'number'
+        ? (() => { const d = XLSX.SSF.parse_date_code(dataVencimento); return `${String(d.d).padStart(2, '0')}/${String(d.m).padStart(2, '0')}/${d.y}`; })()
+        : String(dataVencimento);
+
+      const chave = `${filial}_${dataFormatada}`;
+      if (!grupos[chave]) grupos[chave] = { data: dataFormatada, filial, quantidade: 0, valorTotal: 0 };
+      grupos[chave].quantidade += 1;
+      grupos[chave].valorTotal += valor;
+    });
+
+    return Object.values(grupos).sort((a, b) => {
+      const ordemA = ordemFiliais[a.filial] || 999;
+      const ordemB = ordemFiliais[b.filial] || 999;
+      if (ordemA !== ordemB) return ordemA - ordemB;
+      const [diaA, mesA, anoA] = a.data.split('/');
+      const [diaB, mesB, anoB] = b.data.split('/');
+      return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
+    });
+  };
+
   const dadosAgrupados = agruparPorDiaEFilial();
+  const dadosRemessaBancaria = agruparRemessaBancaria();
+  const dadosPessoal = agruparDespesasPessoal();
+  const dadosFinanceiras = agruparDespesasFinanceiras();
+  const dadosCartao = agruparDespesasCartao();
 
   const dadosFiltrados = filiaisSelecionadas.length > 0
     ? dadosAgrupados.filter(d => filiaisSelecionadas.includes(d.filial))
     : dadosAgrupados;
 
+  const dadosRemessaFiltrados = filiaisSelecionadas.length > 0
+    ? dadosRemessaBancaria.filter(d => filiaisSelecionadas.includes(d.filial))
+    : dadosRemessaBancaria;
+
   const datasUnicas = [...new Set(dadosAgrupados.map(d => d.data))].sort((a, b) => {
+    const [diaA, mesA, anoA] = a.split('/');
+    const [diaB, mesB, anoB] = b.split('/');
+    return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
+  });
+
+  const datasRemessaUnicas = [...new Set(dadosRemessaBancaria.map(d => d.data))].sort((a, b) => {
+    const [diaA, mesA, anoA] = a.split('/');
+    const [diaB, mesB, anoB] = b.split('/');
+    return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
+  });
+
+  const datasCartaoUnicas = [...new Set(dadosCartao.map(d => d.data))].sort((a, b) => {
     const [diaA, mesA, anoA] = a.split('/');
     const [diaB, mesB, anoB] = b.split('/');
     return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
@@ -177,6 +425,14 @@ export default function App() {
   const datasVisiveis = datasSelecionadas.length > 0
     ? datasUnicas.filter(d => datasSelecionadas.includes(d))
     : datasUnicas;
+
+  const datasRemessaVisiveis = datasSelecionadas.length > 0
+    ? datasRemessaUnicas.filter(d => datasSelecionadas.includes(d))
+    : datasRemessaUnicas;
+
+  const datasCartaoVisiveis = datasSelecionadas.length > 0
+    ? datasCartaoUnicas.filter(d => datasSelecionadas.includes(d))
+    : datasCartaoUnicas;
 
   const toggleData = (data) => {
     setDatasSelecionadas(prev =>
@@ -197,18 +453,106 @@ export default function App() {
     lookup[`${item.filial}_${item.data}`] = item;
   });
 
+  const lookupRemessa = {};
+  dadosRemessaBancaria.forEach(item => {
+    lookupRemessa[`${item.filial}_${item.data}`] = item;
+  });
+
+  const lookupPessoal = {};
+  dadosPessoal.forEach(item => {
+    lookupPessoal[`${item.filial}_${item.data}`] = item;
+  });
+
+  const lookupFinanceiras = {};
+  dadosFinanceiras.forEach(item => {
+    lookupFinanceiras[`${item.filial}_${item.data}`] = item;
+  });
+
+  const lookupCartao = {};
+  dadosCartao.forEach(item => {
+    lookupCartao[`${item.filial}_${item.data}`] = item;
+  });
+
+  // Dados para gráfico empilhado (4 categorias + total)
   const dadosParaGrafico = datasVisiveis.map(data => {
-    let quantidade = 0;
-    let valorTotal = 0;
+    let remessa = 0, pessoal = 0, financeiras = 0, cartao = 0;
+    let qtdRemessa = 0, qtdPessoal = 0, qtdFinanceiras = 0, qtdCartao = 0;
+    
     filiaisVisiveis.forEach(filial => {
-      const entry = lookup[`${filial}_${data}`];
-      if (entry) { quantidade += entry.quantidade; valorTotal += entry.valorTotal; }
+      const entryRemessa = lookupRemessa[`${filial}_${data}`];
+      const entryPessoal = lookupPessoal[`${filial}_${data}`];
+      const entryFinanceiras = lookupFinanceiras[`${filial}_${data}`];
+      const entryCartao = lookupCartao[`${filial}_${data}`];
+      
+      if (entryRemessa) {
+        remessa += entryRemessa.valorTotal;
+        qtdRemessa += entryRemessa.quantidade;
+      }
+      if (entryPessoal) {
+        pessoal += entryPessoal.valorTotal;
+        qtdPessoal += entryPessoal.quantidade;
+      }
+      if (entryFinanceiras) {
+        financeiras += entryFinanceiras.valorTotal;
+        qtdFinanceiras += entryFinanceiras.quantidade;
+      }
+      if (entryCartao) {
+        cartao += entryCartao.valorTotal;
+        qtdCartao += entryCartao.quantidade;
+      }
     });
-    return { data, quantidade, valorTotal };
+    
+    const totalValor = remessa + pessoal + financeiras + cartao;
+    const totalQuantidade = qtdRemessa + qtdPessoal + qtdFinanceiras + qtdCartao;
+    
+    return { data, remessa, pessoal, financeiras, cartao, totalValor, totalQuantidade };
+  });
+
+  // Dados para gráfico por filial (sem data)
+  const dadosParaGraficoPorFilial = filiaisVisiveis.map(filial => {
+    let remessa = 0, pessoal = 0, financeiras = 0, cartao = 0;
+    let qtdRemessa = 0, qtdPessoal = 0, qtdFinanceiras = 0, qtdCartao = 0;
+    
+    datasVisiveis.forEach(data => {
+      const entryRemessa = lookupRemessa[`${filial}_${data}`];
+      const entryPessoal = lookupPessoal[`${filial}_${data}`];
+      const entryFinanceiras = lookupFinanceiras[`${filial}_${data}`];
+      const entryCartao = lookupCartao[`${filial}_${data}`];
+      
+      if (entryRemessa) {
+        remessa += entryRemessa.valorTotal;
+        qtdRemessa += entryRemessa.quantidade;
+      }
+      if (entryPessoal) {
+        pessoal += entryPessoal.valorTotal;
+        qtdPessoal += entryPessoal.quantidade;
+      }
+      if (entryFinanceiras) {
+        financeiras += entryFinanceiras.valorTotal;
+        qtdFinanceiras += entryFinanceiras.quantidade;
+      }
+      if (entryCartao) {
+        cartao += entryCartao.valorTotal;
+        qtdCartao += entryCartao.quantidade;
+      }
+    });
+    
+    const totalValor = remessa + pessoal + financeiras + cartao;
+    const totalQuantidade = qtdRemessa + qtdPessoal + qtdFinanceiras + qtdCartao;
+    
+    return { filial, remessa, pessoal, financeiras, cartao, totalValor, totalQuantidade };
   });
 
   const totais = dadosFiltrados.reduce((acc, item) => {
     if (datasVisiveis.includes(item.data)) {
+      acc.quantidade += item.quantidade;
+      acc.valor += item.valorTotal;
+    }
+    return acc;
+  }, { quantidade: 0, valor: 0 });
+
+  const totaisRemessa = dadosRemessaFiltrados.reduce((acc, item) => {
+    if (datasRemessaVisiveis.includes(item.data)) {
       acc.quantidade += item.quantidade;
       acc.valor += item.valorTotal;
     }
@@ -267,6 +611,10 @@ export default function App() {
           }
           .recharts-surface {
             height: 140px !important;
+          }
+          /* Esconder legenda do gráfico no PDF */
+          .recharts-legend-wrapper {
+            display: none !important;
           }
           .table-container {
             max-height: none !important;
@@ -351,13 +699,18 @@ export default function App() {
 
             {/* Upload */}
             <div className="mb-6 no-print">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Carregar arquivo Excel</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Carregar arquivo CSV
+              </label>
               <input
                 type="file"
-                accept=".xlsx,.xls"
+                accept=".csv"
                 onChange={processarArquivo}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
               />
+              <p className="text-xs text-gray-500 mt-2">
+                📋 CSV deve ter as colunas: Nome Fantasia (Filial), Data de Previsão, Valor da Conta
+              </p>
             </div>
 
             {loading && (
@@ -451,42 +804,78 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Gráfico combinado */}
+                {/* Gráfico Geral - Empilhado por Categoria */}
                 <div className="mb-8 grafico-print">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-4">Quantidade de Registros e Valor Total por Data</h2>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <ComposedChart data={dadosParaGrafico} margin={{ top: 10, right: 40, left: 10, bottom: 60 }}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-800">Visão Geral - Despesas por Categoria</h2>
+                    <div className="flex gap-2 no-print">
+                      <button
+                        onClick={() => setTipoGrafico('data')}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          tipoGrafico === 'data'
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        Por Data
+                      </button>
+                      <button
+                        onClick={() => setTipoGrafico('filial')}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          tipoGrafico === 'filial'
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        Por Filial
+                      </button>
+                    </div>
+                  </div>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <ComposedChart 
+                      data={tipoGrafico === 'data' ? dadosParaGrafico : dadosParaGraficoPorFilial} 
+                      margin={{ top: 10, right: 40, left: 10, bottom: 60 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="data" angle={-45} textAnchor="end" height={80} />
+                      <XAxis 
+                        dataKey={tipoGrafico === 'data' ? 'data' : 'filial'} 
+                        angle={-45} 
+                        textAnchor="end" 
+                        height={80} 
+                      />
                       <YAxis
                         yAxisId="left"
                         orientation="left"
                         tickFormatter={(v) => `R$ ${v.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
-                        label={{ value: 'Valor Total', angle: -90, position: 'insideLeft', offset: 10 }}
+                        label={{ value: 'Valor (R$)', angle: -90, position: 'insideLeft', offset: 10 }}
                       />
                       <YAxis
                         yAxisId="right"
                         orientation="right"
-                        label={{ value: 'Quantidade', angle: 90, position: 'insideRight', offset: 10 }}
+                        label={{ value: 'Quantidade Total', angle: 90, position: 'insideRight', offset: 10 }}
                       />
                       <Tooltip
-                        formatter={(value, name) =>
-                          name === 'Quantidade'
+                        formatter={(value, name) => 
+                          name === 'Quantidade Total' 
                             ? [value, name]
                             : [`R$ ${fmt(value)}`, name]
                         }
+                        labelStyle={{ fontWeight: 'bold' }}
                       />
-                      <Legend verticalAlign="top" />
-                      <Bar yAxisId="left" dataKey="valorTotal" fill="#3b82f6" name="Valor Total (R$)" radius={[4, 4, 0, 0]} />
-                      <Line yAxisId="right" type="monotone" dataKey="quantidade" stroke="#10b981" strokeWidth={2} name="Quantidade" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 10 }} />
+                      <Bar yAxisId="left" dataKey="remessa" stackId="a" fill="#3b82f6" name="Remessa Bancária" />
+                      <Bar yAxisId="left" dataKey="pessoal" stackId="a" fill="#10b981" name="Despesas Pessoal" />
+                      <Bar yAxisId="left" dataKey="financeiras" stackId="a" fill="#f59e0b" name="Financ./Impostos" />
+                      <Bar yAxisId="left" dataKey="cartao" stackId="a" fill="#8b5cf6" name="Cartão Crédito" />
+                      <Line yAxisId="right" type="monotone" dataKey="totalQuantidade" stroke="#ef4444" strokeWidth={3} name="Quantidade Total" dot={{ r: 5 }} activeDot={{ r: 7 }} />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
 
-                {/* Tabela Pivô */}
+                {/* Tabela 1: Remessa Bancária */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-800">Detalhamento por Filial e Data</h2>
+                    <h2 className="text-xl font-semibold text-gray-800">Remessa Bancária por Filial e Data</h2>
                     <button
                       onClick={() => setTabelaTransposta(!tabelaTransposta)}
                       className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
@@ -526,14 +915,14 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {datasVisiveis.map((data, idx) => {
-                          const totalQtd = filiaisVisiveis.reduce((s, f) => s + (lookup[`${f}_${data}`]?.quantidade || 0), 0);
-                          const totalVal = filiaisVisiveis.reduce((s, f) => s + (lookup[`${f}_${data}`]?.valorTotal || 0), 0);
+                        {datasRemessaVisiveis.map((data, idx) => {
+                          const totalQtd = filiaisVisiveis.reduce((s, f) => s + (lookupRemessa[`${f}_${data}`]?.quantidade || 0), 0);
+                          const totalVal = filiaisVisiveis.reduce((s, f) => s + (lookupRemessa[`${f}_${data}`]?.valorTotal || 0), 0);
                           return (
                             <tr key={data} className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50 hover:bg-blue-50'}>
                               <td className="sticky-col border border-gray-200 px-4 py-3 font-medium text-gray-800 whitespace-nowrap">{data}</td>
                               {filiaisVisiveis.map(filial => {
-                                const entry = lookup[`${filial}_${data}`];
+                                const entry = lookupRemessa[`${filial}_${data}`];
                                 return (
                                   <React.Fragment key={filial}>
                                     <td className="border border-gray-200 px-3 py-3 text-center text-gray-700">
@@ -558,8 +947,8 @@ export default function App() {
                         <tr className="bg-indigo-50 font-semibold border-t-2 border-indigo-300">
                           <td className="sticky-col border border-gray-300 px-4 py-3 text-indigo-800 bg-indigo-50">Total</td>
                           {filiaisVisiveis.map(filial => {
-                            const qtd = datasVisiveis.reduce((s, d) => s + (lookup[`${filial}_${d}`]?.quantidade || 0), 0);
-                            const val = datasVisiveis.reduce((s, d) => s + (lookup[`${filial}_${d}`]?.valorTotal || 0), 0);
+                            const qtd = datasRemessaVisiveis.reduce((s, d) => s + (lookupRemessa[`${filial}_${d}`]?.quantidade || 0), 0);
+                            const val = datasRemessaVisiveis.reduce((s, d) => s + (lookupRemessa[`${filial}_${d}`]?.valorTotal || 0), 0);
                             return (
                               <React.Fragment key={filial}>
                                 <td className="border border-gray-300 px-3 py-3 text-center text-indigo-800">{qtd || <span className="text-gray-300">—</span>}</td>
@@ -570,10 +959,10 @@ export default function App() {
                             );
                           })}
                           <td className="border border-gray-300 px-3 py-3 text-center text-white bg-indigo-700 font-bold">
-                            {filiaisVisiveis.reduce((s, f) => s + datasVisiveis.reduce((ss, d) => ss + (lookup[`${f}_${d}`]?.quantidade || 0), 0), 0)}
+                            {filiaisVisiveis.reduce((s, f) => s + datasRemessaVisiveis.reduce((ss, d) => ss + (lookupRemessa[`${f}_${d}`]?.quantidade || 0), 0), 0)}
                           </td>
                           <td className="border border-gray-300 px-3 py-3 text-center text-white bg-indigo-700 font-bold whitespace-nowrap">
-                            R$ {fmt(filiaisVisiveis.reduce((s, f) => s + datasVisiveis.reduce((ss, d) => ss + (lookup[`${f}_${d}`]?.valorTotal || 0), 0), 0))}
+                            R$ {fmt(filiaisVisiveis.reduce((s, f) => s + datasRemessaVisiveis.reduce((ss, d) => ss + (lookupRemessa[`${f}_${d}`]?.valorTotal || 0), 0), 0))}
                           </td>
                         </tr>
                       </tbody>
@@ -586,7 +975,7 @@ export default function App() {
                           <th rowSpan={2} className="sticky-col-header border border-gray-300 bg-indigo-600 text-white px-4 py-3 text-left font-semibold min-w-32">
                             Filial
                           </th>
-                          {datasVisiveis.map(data => (
+                          {datasRemessaVisiveis.map(data => (
                             <th key={data} colSpan={2} className="border border-gray-300 bg-indigo-500 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">
                               {data}
                             </th>
@@ -596,7 +985,7 @@ export default function App() {
                           </th>
                         </tr>
                         <tr className="sticky-header-second">
-                          {datasVisiveis.map(data => (
+                          {datasRemessaVisiveis.map(data => (
                             <React.Fragment key={data}>
                               <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
                               <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
@@ -608,13 +997,13 @@ export default function App() {
                       </thead>
                       <tbody>
                         {filiaisVisiveis.map((filial, idx) => {
-                          const totalQtd = datasVisiveis.reduce((s, d) => s + (lookup[`${filial}_${d}`]?.quantidade || 0), 0);
-                          const totalVal = datasVisiveis.reduce((s, d) => s + (lookup[`${filial}_${d}`]?.valorTotal || 0), 0);
+                          const totalQtd = datasRemessaVisiveis.reduce((s, d) => s + (lookupRemessa[`${filial}_${d}`]?.quantidade || 0), 0);
+                          const totalVal = datasRemessaVisiveis.reduce((s, d) => s + (lookupRemessa[`${filial}_${d}`]?.valorTotal || 0), 0);
                           return (
                             <tr key={filial} className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50 hover:bg-blue-50'}>
                               <td className="sticky-col border border-gray-200 px-4 py-3 font-medium text-gray-800 whitespace-nowrap">{filial}</td>
-                              {datasVisiveis.map(data => {
-                                const entry = lookup[`${filial}_${data}`];
+                              {datasRemessaVisiveis.map(data => {
+                                const entry = lookupRemessa[`${filial}_${data}`];
                                 return (
                                   <React.Fragment key={data}>
                                     <td className="border border-gray-200 px-3 py-3 text-center text-gray-700">
@@ -638,9 +1027,9 @@ export default function App() {
                         {/* Linha de totais */}
                         <tr className="bg-indigo-50 font-semibold border-t-2 border-indigo-300">
                           <td className="sticky-col border border-gray-300 px-4 py-3 text-indigo-800 bg-indigo-50">Total</td>
-                          {datasVisiveis.map(data => {
-                            const qtd = filiaisVisiveis.reduce((s, f) => s + (lookup[`${f}_${data}`]?.quantidade || 0), 0);
-                            const val = filiaisVisiveis.reduce((s, f) => s + (lookup[`${f}_${data}`]?.valorTotal || 0), 0);
+                          {datasRemessaVisiveis.map(data => {
+                            const qtd = filiaisVisiveis.reduce((s, f) => s + (lookupRemessa[`${f}_${data}`]?.quantidade || 0), 0);
+                            const val = filiaisVisiveis.reduce((s, f) => s + (lookupRemessa[`${f}_${data}`]?.valorTotal || 0), 0);
                             return (
                               <React.Fragment key={data}>
                                 <td className="border border-gray-300 px-3 py-3 text-center text-indigo-800">{qtd || <span className="text-gray-300">—</span>}</td>
@@ -651,15 +1040,351 @@ export default function App() {
                             );
                           })}
                           <td className="border border-gray-300 px-3 py-3 text-center text-white bg-indigo-700 font-bold">
-                            {filiaisVisiveis.reduce((s, f) => s + datasVisiveis.reduce((ss, d) => ss + (lookup[`${f}_${d}`]?.quantidade || 0), 0), 0)}
+                            {filiaisVisiveis.reduce((s, f) => s + datasRemessaVisiveis.reduce((ss, d) => ss + (lookupRemessa[`${f}_${d}`]?.quantidade || 0), 0), 0)}
                           </td>
                           <td className="border border-gray-300 px-3 py-3 text-center text-white bg-indigo-700 font-bold whitespace-nowrap">
-                            R$ {fmt(filiaisVisiveis.reduce((s, f) => s + datasVisiveis.reduce((ss, d) => ss + (lookup[`${f}_${d}`]?.valorTotal || 0), 0), 0))}
+                            R$ {fmt(filiaisVisiveis.reduce((s, f) => s + datasRemessaVisiveis.reduce((ss, d) => ss + (lookupRemessa[`${f}_${d}`]?.valorTotal || 0), 0), 0))}
                           </td>
                         </tr>
                       </tbody>
                     </table>
                   )}
+                  </div>
+                  {/* Mini Gráfico Remessa */}
+                  <div className="mt-4 no-print">
+                    <ResponsiveContainer width="100%" height={150}>
+                      <BarChart data={dadosParaGrafico} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="data" angle={-45} textAnchor="end" height={60} tick={{ fontSize: 11 }} />
+                        <YAxis tickFormatter={(v) => `R$ ${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(value) => [`R$ ${fmt(value)}`, 'Remessa Bancária']} />
+                        <Bar dataKey="remessa" fill="#3b82f6" name="Remessa Bancária" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Tabela 2: Despesas com Pessoal */}
+                <div className="mt-8">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-4">Despesas com Pessoal</h2>
+                  <div className="table-container">
+                    <table className="min-w-full border border-gray-200 text-sm">
+                      <thead className="sticky-header bg-green-600 text-white">
+                        <tr>
+                          <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Filial</th>
+                          <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Data</th>
+                          <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Categoria</th>
+                          <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Valor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filiaisVisiveis.map(filial => {
+                          const registrosFilial = dados.filter(item => {
+                            const formaPagamento = buscarCampo(item, 'Forma de Pagamento');
+                            const categoria = buscarCampo(item, 'Categoria');
+                            const filialItem = buscarCampo(item, 'Filial');
+                            const catPermitidas = ['Adiantamento', 'Férias', 'Indenizações e Aviso Prévio', 'Rescisões', 'Salários', 'Seguros de Vida'];
+                            return (!formaPagamento || formaPagamento === 'N/D' || formaPagamento.trim() === '') 
+                              && categoria && catPermitidas.includes(categoria.trim())
+                              && filialItem === filial;
+                          });
+                          
+                          if (registrosFilial.length === 0) return null;
+                          
+                          const totalFilial = registrosFilial.reduce((sum, item) => {
+                            const valorRaw = buscarCampo(item, 'Valor');
+                            return sum + parsearValor(valorRaw);
+                          }, 0);
+                          
+                          return (
+                            <React.Fragment key={filial}>
+                              {registrosFilial.map((item, idx) => {
+                                const data = buscarCampo(item, 'Vencimento');
+                                const categoria = buscarCampo(item, 'Categoria');
+                                const valorRaw = buscarCampo(item, 'Valor');
+                                const valor = parsearValor(valorRaw);
+                                return (
+                                  <tr key={`${filial}-${idx}`} className="bg-white hover:bg-green-50">
+                                    {idx === 0 && <td rowSpan={registrosFilial.length + 1} className="border border-gray-200 px-4 py-2 font-semibold bg-green-50">{filial}</td>}
+                                    <td className="border border-gray-200 px-4 py-2">{data}</td>
+                                    <td className="border border-gray-200 px-4 py-2">{categoria}</td>
+                                    <td className="border border-gray-200 px-4 py-2 text-right">R$ {fmt(valor)}</td>
+                                  </tr>
+                                );
+                              })}
+                              <tr className="bg-green-100 font-semibold">
+                                <td colSpan={2} className="border border-gray-200 px-4 py-2 text-right">Total {filial}:</td>
+                                <td className="border border-gray-200 px-4 py-2 text-right">
+                                  {registrosFilial.length} registro{registrosFilial.length > 1 ? 's' : ''} | R$ {fmt(totalFilial)}
+                                </td>
+                              </tr>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Mini Gráfico Pessoal */}
+                  <div className="mt-4 no-print">
+                    <ResponsiveContainer width="100%" height={150}>
+                      <BarChart data={dadosParaGrafico} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="data" angle={-45} textAnchor="end" height={60} tick={{ fontSize: 11 }} />
+                        <YAxis tickFormatter={(v) => `R$ ${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(value) => [`R$ ${fmt(value)}`, 'Despesas Pessoal']} />
+                        <Bar dataKey="pessoal" fill="#10b981" name="Despesas Pessoal" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Tabela 3: Despesas Financeiras/Impostos */}
+                <div className="mt-8">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-4">Despesas Financeiras/Impostos</h2>
+                  <div className="table-container">
+                    <table className="min-w-full border border-gray-200 text-sm">
+                      <thead className="sticky-header bg-orange-600 text-white">
+                        <tr>
+                          <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Filial</th>
+                          <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Data</th>
+                          <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Categoria</th>
+                          <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Valor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filiaisVisiveis.map(filial => {
+                          const registrosFilial = dados.filter(item => {
+                            const formaPagamento = buscarCampo(item, 'Forma de Pagamento');
+                            const categoria = buscarCampo(item, 'Categoria');
+                            const filialItem = buscarCampo(item, 'Filial');
+                            const catPermitidas = ['Energia Eletrica e Gas', 'ICMS', 'Impostos e Taxas Diversas', 'ISS', 'Pagamento de Empréstimos', 'Seguros'];
+                            return (!formaPagamento || formaPagamento === 'N/D' || formaPagamento.trim() === '') 
+                              && categoria && catPermitidas.includes(categoria.trim())
+                              && filialItem === filial;
+                          });
+                          
+                          if (registrosFilial.length === 0) return null;
+                          
+                          const totalFilial = registrosFilial.reduce((sum, item) => {
+                            const valorRaw = buscarCampo(item, 'Valor');
+                            return sum + parsearValor(valorRaw);
+                          }, 0);
+                          
+                          return (
+                            <React.Fragment key={filial}>
+                              {registrosFilial.map((item, idx) => {
+                                const data = buscarCampo(item, 'Vencimento');
+                                const categoria = buscarCampo(item, 'Categoria');
+                                const valorRaw = buscarCampo(item, 'Valor');
+                                const valor = parsearValor(valorRaw);
+                                return (
+                                  <tr key={`${filial}-${idx}`} className="bg-white hover:bg-orange-50">
+                                    {idx === 0 && <td rowSpan={registrosFilial.length + 1} className="border border-gray-200 px-4 py-2 font-semibold bg-orange-50">{filial}</td>}
+                                    <td className="border border-gray-200 px-4 py-2">{data}</td>
+                                    <td className="border border-gray-200 px-4 py-2">{categoria}</td>
+                                    <td className="border border-gray-200 px-4 py-2 text-right">R$ {fmt(valor)}</td>
+                                  </tr>
+                                );
+                              })}
+                              <tr className="bg-orange-100 font-semibold">
+                                <td colSpan={2} className="border border-gray-200 px-4 py-2 text-right">Total {filial}:</td>
+                                <td className="border border-gray-200 px-4 py-2 text-right">
+                                  {registrosFilial.length} registro{registrosFilial.length > 1 ? 's' : ''} | R$ {fmt(totalFilial)}
+                                </td>
+                              </tr>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Mini Gráfico Financeiras */}
+                  <div className="mt-4 no-print">
+                    <ResponsiveContainer width="100%" height={150}>
+                      <BarChart data={dadosParaGrafico} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="data" angle={-45} textAnchor="end" height={60} tick={{ fontSize: 11 }} />
+                        <YAxis tickFormatter={(v) => `R$ ${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(value) => [`R$ ${fmt(value)}`, 'Financ./Impostos']} />
+                        <Bar dataKey="financeiras" fill="#f59e0b" name="Financ./Impostos" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Tabela 4: Despesas com Cartão de Crédito - Formato Pivô */}
+                <div className="mt-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-800">Despesas com Cartão de Crédito por Filial e Data</h2>
+                    <button
+                      onClick={() => setTabela4Transposta(!tabela4Transposta)}
+                      className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                      {tabela4Transposta ? 'Visualização Normal' : 'Inverter Eixos'}
+                    </button>
+                  </div>
+                  <div className="table-container">{!tabela4Transposta ? (
+                    <table className="min-w-full border border-gray-200 text-sm">
+                      <thead>
+                        <tr className="sticky-header">
+                          <th rowSpan={2} className="sticky-col-header border border-gray-300 bg-purple-600 text-white px-4 py-3 text-left font-semibold min-w-32">Data</th>
+                          {filiaisVisiveis.map(filial => (
+                            <th key={filial} colSpan={2} className="border border-gray-300 bg-purple-500 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">{filial}</th>
+                          ))}
+                          <th colSpan={2} className="border border-gray-300 bg-purple-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">Total Geral</th>
+                        </tr>
+                        <tr className="sticky-header-second">
+                          {filiaisVisiveis.map(filial => (
+                            <React.Fragment key={filial}>
+                              <th className="border border-gray-300 bg-purple-100 text-purple-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                              <th className="border border-gray-300 bg-purple-100 text-purple-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
+                            </React.Fragment>
+                          ))}
+                          <th className="border border-gray-300 bg-purple-100 text-purple-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                          <th className="border border-gray-300 bg-purple-100 text-purple-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {datasCartaoVisiveis.map((data, idx) => {
+                          const totalQtd = filiaisVisiveis.reduce((s, f) => s + (lookupCartao[`${f}_${data}`]?.quantidade || 0), 0);
+                          const totalVal = filiaisVisiveis.reduce((s, f) => s + (lookupCartao[`${f}_${data}`]?.valorTotal || 0), 0);
+                          return (
+                            <tr key={data} className={idx % 2 === 0 ? 'bg-white hover:bg-purple-50' : 'bg-gray-50 hover:bg-purple-50'}>
+                              <td className="sticky-col border border-gray-200 px-4 py-3 font-medium text-gray-800 whitespace-nowrap">{data}</td>
+                              {filiaisVisiveis.map(filial => {
+                                const entry = lookupCartao[`${filial}_${data}`];
+                                return (
+                                  <React.Fragment key={filial}>
+                                    <td className="border border-gray-200 px-3 py-3 text-center text-gray-700">
+                                      {entry ? entry.quantidade : <span className="text-gray-300">—</span>}
+                                    </td>
+                                    <td className="border border-gray-200 px-3 py-3 text-center text-gray-700 whitespace-nowrap">
+                                      {entry ? `R$ ${fmt(entry.valorTotal)}` : <span className="text-gray-300">—</span>}
+                                    </td>
+                                  </React.Fragment>
+                                );
+                              })}
+                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-purple-800 bg-purple-50">
+                                {totalQtd || <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-purple-800 bg-purple-50 whitespace-nowrap">
+                                {totalVal > 0 ? `R$ ${fmt(totalVal)}` : <span className="text-gray-300">—</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="bg-purple-50 font-semibold border-t-2 border-purple-300">
+                          <td className="sticky-col border border-gray-300 px-4 py-3 text-purple-800 bg-purple-50">Total</td>
+                          {filiaisVisiveis.map(filial => {
+                            const qtd = datasCartaoVisiveis.reduce((s, d) => s + (lookupCartao[`${filial}_${d}`]?.quantidade || 0), 0);
+                            const val = datasCartaoVisiveis.reduce((s, d) => s + (lookupCartao[`${filial}_${d}`]?.valorTotal || 0), 0);
+                            return (
+                              <React.Fragment key={filial}>
+                                <td className="border border-gray-300 px-3 py-3 text-center text-purple-800">{qtd || <span className="text-gray-300">—</span>}</td>
+                                <td className="border border-gray-300 px-3 py-3 text-center text-purple-800 whitespace-nowrap">
+                                  {val > 0 ? `R$ ${fmt(val)}` : <span className="text-gray-300">—</span>}
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
+                          <td className="border border-gray-300 px-3 py-3 text-center text-white bg-purple-700 font-bold">
+                            {filiaisVisiveis.reduce((s, f) => s + datasCartaoVisiveis.reduce((ss, d) => ss + (lookupCartao[`${f}_${d}`]?.quantidade || 0), 0), 0)}
+                          </td>
+                          <td className="border border-gray-300 px-3 py-3 text-center text-white bg-purple-700 font-bold whitespace-nowrap">
+                            R$ {fmt(filiaisVisiveis.reduce((s, f) => s + datasCartaoVisiveis.reduce((ss, d) => ss + (lookupCartao[`${f}_${d}`]?.valorTotal || 0), 0), 0))}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  ) : (
+                    <table className="min-w-full border border-gray-200 text-sm">
+                      <thead>
+                        <tr className="sticky-header">
+                          <th rowSpan={2} className="sticky-col-header border border-gray-300 bg-purple-600 text-white px-4 py-3 text-left font-semibold min-w-32">Filial</th>
+                          {datasCartaoVisiveis.map(data => (
+                            <th key={data} colSpan={2} className="border border-gray-300 bg-purple-500 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">{data}</th>
+                          ))}
+                          <th colSpan={2} className="border border-gray-300 bg-purple-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">Total Geral</th>
+                        </tr>
+                        <tr className="sticky-header-second">
+                          {datasCartaoVisiveis.map(data => (
+                            <React.Fragment key={data}>
+                              <th className="border border-gray-300 bg-purple-100 text-purple-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                              <th className="border border-gray-300 bg-purple-100 text-purple-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
+                            </React.Fragment>
+                          ))}
+                          <th className="border border-gray-300 bg-purple-100 text-purple-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                          <th className="border border-gray-300 bg-purple-100 text-purple-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filiaisVisiveis.map((filial, idx) => {
+                          const totalQtd = datasCartaoVisiveis.reduce((s, d) => s + (lookupCartao[`${filial}_${d}`]?.quantidade || 0), 0);
+                          const totalVal = datasCartaoVisiveis.reduce((s, d) => s + (lookupCartao[`${filial}_${d}`]?.valorTotal || 0), 0);
+                          return (
+                            <tr key={filial} className={idx % 2 === 0 ? 'bg-white hover:bg-purple-50' : 'bg-gray-50 hover:bg-purple-50'}>
+                              <td className="sticky-col border border-gray-200 px-4 py-3 font-medium text-gray-800 whitespace-nowrap">{filial}</td>
+                              {datasCartaoVisiveis.map(data => {
+                                const entry = lookupCartao[`${filial}_${data}`];
+                                return (
+                                  <React.Fragment key={data}>
+                                    <td className="border border-gray-200 px-3 py-3 text-center text-gray-700">
+                                      {entry ? entry.quantidade : <span className="text-gray-300">—</span>}
+                                    </td>
+                                    <td className="border border-gray-200 px-3 py-3 text-center text-gray-700 whitespace-nowrap">
+                                      {entry ? `R$ ${fmt(entry.valorTotal)}` : <span className="text-gray-300">—</span>}
+                                    </td>
+                                  </React.Fragment>
+                                );
+                              })}
+                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-purple-800 bg-purple-50">
+                                {totalQtd || <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-purple-800 bg-purple-50 whitespace-nowrap">
+                                {totalVal > 0 ? `R$ ${fmt(totalVal)}` : <span className="text-gray-300">—</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="bg-purple-50 font-semibold border-t-2 border-purple-300">
+                          <td className="sticky-col border border-gray-300 px-4 py-3 text-purple-800 bg-purple-50">Total</td>
+                          {datasCartaoVisiveis.map(data => {
+                            const qtd = filiaisVisiveis.reduce((s, f) => s + (lookupCartao[`${f}_${data}`]?.quantidade || 0), 0);
+                            const val = filiaisVisiveis.reduce((s, f) => s + (lookupCartao[`${f}_${data}`]?.valorTotal || 0), 0);
+                            return (
+                              <React.Fragment key={data}>
+                                <td className="border border-gray-300 px-3 py-3 text-center text-purple-800">{qtd || <span className="text-gray-300">—</span>}</td>
+                                <td className="border border-gray-300 px-3 py-3 text-center text-purple-800 whitespace-nowrap">
+                                  {val > 0 ? `R$ ${fmt(val)}` : <span className="text-gray-300">—</span>}
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
+                          <td className="border border-gray-300 px-3 py-3 text-center text-white bg-purple-700 font-bold">
+                            {filiaisVisiveis.reduce((s, f) => s + datasCartaoVisiveis.reduce((ss, d) => ss + (lookupCartao[`${f}_${d}`]?.quantidade || 0), 0), 0)}
+                          </td>
+                          <td className="border border-gray-300 px-3 py-3 text-center text-white bg-purple-700 font-bold whitespace-nowrap">
+                            R$ {fmt(filiaisVisiveis.reduce((s, f) => s + datasCartaoVisiveis.reduce((ss, d) => ss + (lookupCartao[`${f}_${d}`]?.valorTotal || 0), 0), 0))}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                  </div>
+                  {/* Mini Gráfico Cartão */}
+                  <div className="mt-4 no-print">
+                    <ResponsiveContainer width="100%" height={150}>
+                      <BarChart data={dadosParaGrafico} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="data" angle={-45} textAnchor="end" height={60} tick={{ fontSize: 11 }} />
+                        <YAxis tickFormatter={(v) => `R$ ${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(value) => [`R$ ${fmt(value)}`, 'Cartão Crédito']} />
+                        <Bar dataKey="cartao" fill="#8b5cf6" name="Cartão Crédito" />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
               </>
@@ -670,9 +1395,9 @@ export default function App() {
                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <p className="mt-4">Faça upload de um arquivo Excel para começar</p>
-                <p className="text-sm mt-2">O arquivo deve conter uma aba chamada "Já Existentes"</p>
-                <p className="text-sm mt-1">Colunas necessárias: Filial, Vencimento e Valor</p>
+                <p className="mt-4">Faça upload de um arquivo CSV para começar</p>
+                <p className="text-sm mt-2">O arquivo CSV deve estar separado por ponto-e-vírgula (;)</p>
+                <p className="text-sm mt-1">Formato esperado: Nome Fantasia, Data de Previsão, Valor da Conta</p>
               </div>
             )}
 
