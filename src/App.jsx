@@ -9,10 +9,19 @@ export default function App() {
   const [datasSelecionadas, setDatasSelecionadas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tabelaTransposta, setTabelaTransposta] = useState(false);
+  const [tipoArquivo, setTipoArquivo] = useState('csv'); // 'excel' ou 'csv'
   const [tipoGrafico, setTipoGrafico] = useState('data'); // 'data' ou 'filial'
   const [tabela2Transposta, setTabela2Transposta] = useState(false);
   const [tabela3Transposta, setTabela3Transposta] = useState(false);
   const [tabela4Transposta, setTabela4Transposta] = useState(false);
+  const [tabela5Transposta, setTabela5Transposta] = useState(false);
+  const [tabela1Expandida, setTabela1Expandida] = useState(true);
+  const [tabela2Expandida, setTabela2Expandida] = useState(true);
+  const [tabela3Expandida, setTabela3Expandida] = useState(true);
+  const [tabela4Expandida, setTabela4Expandida] = useState(true);
+  const [tabela5Expandida, setTabela5Expandida] = useState(true);
+  const [filtroFilialAberto, setFiltroFilialAberto] = useState(false);
+  const [filtroDataAberto, setFiltroDataAberto] = useState(false);
 
   // Ordem customizada das filiais
   const ordemFiliais = {
@@ -50,15 +59,16 @@ export default function App() {
 
     reader.onload = (evento) => {
       try {
-        // Processar CSV
-        const texto = evento.target.result;
-        const linhas = texto.split('\n').filter(l => l.trim());
-        
-        if (linhas.length < 2) {
-          alert('Arquivo CSV vazio ou inválido.');
-          setLoading(false);
-          return;
-        }
+        if (tipoArquivo === 'csv') {
+          // Processar CSV
+          const texto = evento.target.result;
+          const linhas = texto.split('\n').filter(l => l.trim());
+          
+          if (linhas.length < 2) {
+            alert('Arquivo CSV vazio ou inválido.');
+            setLoading(false);
+            return;
+          }
 
           // Pular linha 1 (cabeçalho) e processar dados
           const dadosProcessados = linhas.slice(1).map((linha, idx) => {
@@ -145,6 +155,81 @@ export default function App() {
           setDados(dadosProcessados);
           setDatasSelecionadas([]);
           setLoading(false);
+          
+        } else {
+          // Processar Excel (mesmos campos do CSV)
+          const workbook = XLSX.read(evento.target.result, { type: 'binary' });
+          const primeiraAba = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[primeiraAba];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          if (jsonData.length < 2) {
+            alert('Arquivo Excel vazio ou inválido.');
+            setLoading(false);
+            return;
+          }
+
+          // Processar linhas (pular cabeçalho)
+          const dadosProcessados = jsonData.slice(1).map(colunas => {
+            if (!colunas || colunas.length < 82) return null;
+
+            const limpar = (valor) => {
+              if (valor === null || valor === undefined) return '';
+              return String(valor).replace(/^["']|["']$/g, '').trim();
+            };
+
+            // Processar data (coluna 18)
+            const dataRaw = colunas[17]; // índice 17 = coluna 18
+            let dataFormatada = '';
+            if (dataRaw) {
+              if (typeof dataRaw === 'number') {
+                // Data em formato Excel serial
+                const d = XLSX.SSF.parse_date_code(dataRaw);
+                dataFormatada = `${String(d.d).padStart(2, '0')}/${String(d.m).padStart(2, '0')}/${d.y}`;
+              } else {
+                dataFormatada = String(dataRaw);
+              }
+            }
+
+            // Processar valor (coluna 30) - apenas remover sinal negativo
+            const valorRaw = colunas[29]; // índice 29 = coluna 30
+            let valorConvertido = '';
+            if (valorRaw !== null && valorRaw !== undefined && valorRaw !== '') {
+              let valorStr = String(valorRaw);
+              // Remover sinal negativo
+              valorStr = valorStr.replace('-', '');
+              // Se já está em formato brasileiro (com vírgula), manter
+              if (valorStr.includes(',')) {
+                valorConvertido = valorStr;
+              } else {
+                // Se é número, converter para formato brasileiro
+                const valorNum = parseFloat(valorStr);
+                if (!isNaN(valorNum)) {
+                  valorConvertido = valorNum.toFixed(2).replace('.', ',');
+                }
+              }
+            }
+
+            return {
+              'Filial': limpar(colunas[3]),
+              'Categoria': limpar(colunas[6]),
+              'Vencimento': dataFormatada,
+              'Valor': valorConvertido,
+              'Conta Corrente': limpar(colunas[54]),
+              'Forma de Pagamento': limpar(colunas[81])
+            };
+          }).filter(item => item && item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
+
+          if (dadosProcessados.length === 0) {
+            alert('Nenhum dado válido encontrado no Excel.');
+            setLoading(false);
+            return;
+          }
+
+          setDados(dadosProcessados);
+          setDatasSelecionadas([]);
+          setLoading(false);
+        }
       } catch (erro) {
         console.error('Erro ao processar arquivo:', erro);
         alert('Erro ao processar o arquivo. Verifique o formato.');
@@ -152,7 +237,11 @@ export default function App() {
       }
     };
 
-    reader.readAsText(arquivo, 'UTF-8');
+    if (tipoArquivo === 'csv') {
+      reader.readAsText(arquivo, 'UTF-8');
+    } else {
+      reader.readAsBinaryString(arquivo);
+    }
   };
 
   const obterFiliais = () => {
@@ -699,17 +788,41 @@ export default function App() {
 
             {/* Upload */}
             <div className="mb-6 no-print">
+              <div className="flex items-center gap-4 mb-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="tipoArquivo"
+                    value="excel"
+                    checked={tipoArquivo === 'excel'}
+                    onChange={(e) => setTipoArquivo(e.target.value)}
+                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Excel (.xlsx, .xls)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="tipoArquivo"
+                    value="csv"
+                    checked={tipoArquivo === 'csv'}
+                    onChange={(e) => setTipoArquivo(e.target.value)}
+                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">CSV (.csv)</span>
+                </label>
+              </div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Carregar arquivo CSV
+                Carregar arquivo {tipoArquivo === 'excel' ? 'Excel' : 'CSV'}
               </label>
               <input
                 type="file"
-                accept=".csv"
+                accept={tipoArquivo === 'excel' ? '.xlsx,.xls' : '.csv'}
                 onChange={processarArquivo}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
               />
               <p className="text-xs text-gray-500 mt-2">
-                📋 CSV deve ter as colunas: Nome Fantasia (Filial), Data de Previsão, Valor da Conta
+                📋 {tipoArquivo === 'excel' ? 'Excel' : 'CSV'} deve ter as colunas: Nome Fantasia (Filial), Data de Previsão, Valor da Conta, Categoria, Forma de Pagamento, Conta Corrente
               </p>
             </div>
 
@@ -724,66 +837,91 @@ export default function App() {
               <>
                 {/* Filtros */}
                 <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
-                  <div>
+                  {/* Filtro Filial */}
+                  <div className="relative">
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-gray-700">Filtrar por filial</label>
                       {filiaisSelecionadas.length > 0 && (
                         <button onClick={() => setFiliaisSelecionadas([])} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
-                          Limpar ({filiaisSelecionadas.length} selecionada{filiaisSelecionadas.length > 1 ? 's' : ''})
+                          Limpar ({filiaisSelecionadas.length})
                         </button>
                       )}
                     </div>
-                    <div className="border border-gray-300 rounded-md p-3 max-h-36 overflow-y-auto bg-white">
-                      <div className="flex flex-wrap gap-2">
-                        {obterFiliais().map(filial => {
-                          const sel = filiaisSelecionadas.includes(filial);
-                          return (
-                            <button
-                              key={filial}
-                              onClick={() => toggleFilial(filial)}
-                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                                sel ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'
-                              }`}
-                            >
-                              {filial}
-                            </button>
-                          );
-                        })}
+                    <button
+                      onClick={() => setFiltroFilialAberto(!filtroFilialAberto)}
+                      className="w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-md bg-white text-sm text-left hover:bg-gray-50"
+                    >
+                      <span className="text-gray-700">
+                        {filiaisSelecionadas.length === 0 
+                          ? 'Todas as filiais' 
+                          : `${filiaisSelecionadas.length} filial${filiaisSelecionadas.length > 1 ? 's' : ''} selecionada${filiaisSelecionadas.length > 1 ? 's' : ''}`
+                        }
+                      </span>
+                      <svg className={`w-5 h-5 transition-transform ${filtroFilialAberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {filtroFilialAberto && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {obterFiliais().map(filial => (
+                          <label key={filial} className="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={filiaisSelecionadas.includes(filial)}
+                              onChange={() => toggleFilial(filial)}
+                              className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            />
+                            <span className="ml-3 text-sm text-gray-700">{filial}</span>
+                          </label>
+                        ))}
                       </div>
-                    </div>
+                    )}
                     <p className="text-xs text-gray-400 mt-1">
-                      {filiaisSelecionadas.length === 0 ? 'Todas as filiais exibidas' : `${filiaisSelecionadas.length} de ${obterFiliais().length} filiais selecionadas`}
+                      {filiaisSelecionadas.length === 0 ? 'Todas as filiais exibidas' : `${filiaisSelecionadas.length} de ${obterFiliais().length} filiais`}
                     </p>
                   </div>
-                  <div>
+
+                  {/* Filtro Data */}
+                  <div className="relative">
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-gray-700">Filtrar por data</label>
                       {datasSelecionadas.length > 0 && (
                         <button onClick={() => setDatasSelecionadas([])} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
-                          Limpar ({datasSelecionadas.length} selecionada{datasSelecionadas.length > 1 ? 's' : ''})
+                          Limpar ({datasSelecionadas.length})
                         </button>
                       )}
                     </div>
-                    <div className="border border-gray-300 rounded-md p-3 max-h-36 overflow-y-auto bg-white">
-                      <div className="flex flex-wrap gap-2">
-                        {datasUnicas.map(data => {
-                          const sel = datasSelecionadas.includes(data);
-                          return (
-                            <button
-                              key={data}
-                              onClick={() => toggleData(data)}
-                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                                sel ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'
-                              }`}
-                            >
-                              {data}
-                            </button>
-                          );
-                        })}
+                    <button
+                      onClick={() => setFiltroDataAberto(!filtroDataAberto)}
+                      className="w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-md bg-white text-sm text-left hover:bg-gray-50"
+                    >
+                      <span className="text-gray-700">
+                        {datasSelecionadas.length === 0 
+                          ? 'Todas as datas' 
+                          : `${datasSelecionadas.length} data${datasSelecionadas.length > 1 ? 's' : ''} selecionada${datasSelecionadas.length > 1 ? 's' : ''}`
+                        }
+                      </span>
+                      <svg className={`w-5 h-5 transition-transform ${filtroDataAberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {filtroDataAberto && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {datasUnicas.map(data => (
+                          <label key={data} className="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={datasSelecionadas.includes(data)}
+                              onChange={() => toggleData(data)}
+                              className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            />
+                            <span className="ml-3 text-sm text-gray-700">{data}</span>
+                          </label>
+                        ))}
                       </div>
-                    </div>
+                    )}
                     <p className="text-xs text-gray-400 mt-1">
-                      {datasSelecionadas.length === 0 ? 'Todas as datas exibidas' : `${datasSelecionadas.length} de ${datasUnicas.length} datas selecionadas`}
+                      {datasSelecionadas.length === 0 ? 'Todas as datas exibidas' : `${datasSelecionadas.length} de ${datasUnicas.length} datas`}
                     </p>
                   </div>
                 </div>
@@ -807,7 +945,7 @@ export default function App() {
                 {/* Gráfico Geral - Empilhado por Categoria */}
                 <div className="mb-8 grafico-print">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-800">Visão Geral - Despesas por Categoria</h2>
+                    <h2 className="text-xl font-semibold text-gray-800">Visão Geral - Despesas por Tipo de Lançamento</h2>
                     <div className="flex gap-2 no-print">
                       <button
                         onClick={() => setTipoGrafico('data')}
@@ -873,19 +1011,36 @@ export default function App() {
                 </div>
 
                 {/* Tabela 1: Remessa Bancária */}
-                <div>
+                <div className={tabela1Expandida ? '' : 'no-print'}>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-800">Remessa Bancária por Filial e Data</h2>
-                    <button
-                      onClick={() => setTabelaTransposta(!tabelaTransposta)}
-                      className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                      </svg>
-                      {tabelaTransposta ? 'Visualização Normal' : 'Inverter Eixos'}
-                    </button>
+                    <h2 className="text-xl font-semibold text-gray-800">
+                      <span className="text-indigo-600 mr-2">&gt;</span>
+                      Remessa Bancária por Filial e Data
+                    </h2>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setTabela1Expandida(!tabela1Expandida)}
+                        className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tabela1Expandida ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7"} />
+                        </svg>
+                        {tabela1Expandida ? 'Recolher' : 'Expandir'}
+                      </button>
+                      {tabela1Expandida && (
+                        <button
+                          onClick={() => setTabelaTransposta(!tabelaTransposta)}
+                          className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                          </svg>
+                          {tabelaTransposta ? 'Visualização Normal' : 'Inverter Eixos'}
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  {tabela1Expandida && (
                   <div className="table-container">{!tabelaTransposta ? (
                     // Tabela normal: Datas nas linhas, Filiais nas colunas
                     <table className="min-w-full border border-gray-200 text-sm">
@@ -1050,7 +1205,8 @@ export default function App() {
                     </table>
                   )}
                   </div>
-                  {/* Mini Gráfico Remessa */}
+                  )}
+                  {tabela1Expandida && (
                   <div className="mt-4 no-print">
                     <ResponsiveContainer width="100%" height={150}>
                       <BarChart data={dadosParaGrafico} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
@@ -1062,11 +1218,27 @@ export default function App() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
+                  )}
                 </div>
 
                 {/* Tabela 2: Despesas com Pessoal */}
-                <div className="mt-8">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-4">Despesas com Pessoal</h2>
+                <div className={`mt-8 ${tabela2Expandida ? '' : 'no-print'}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-800">
+                      <span className="text-green-600 mr-2">&gt;</span>
+                      Despesas com Pessoal
+                    </h2>
+                    <button
+                      onClick={() => setTabela2Expandida(!tabela2Expandida)}
+                      className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tabela2Expandida ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7"} />
+                      </svg>
+                      {tabela2Expandida ? 'Recolher' : 'Expandir'}
+                    </button>
+                  </div>
+                  {tabela2Expandida && (
                   <div className="table-container">
                     <table className="min-w-full border border-gray-200 text-sm">
                       <thead className="sticky-header bg-green-600 text-white">
@@ -1124,7 +1296,8 @@ export default function App() {
                       </tbody>
                     </table>
                   </div>
-                  {/* Mini Gráfico Pessoal */}
+                  )}
+                  {tabela2Expandida && (
                   <div className="mt-4 no-print">
                     <ResponsiveContainer width="100%" height={150}>
                       <BarChart data={dadosParaGrafico} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
@@ -1136,11 +1309,27 @@ export default function App() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
+                  )}
                 </div>
 
                 {/* Tabela 3: Despesas Financeiras/Impostos */}
-                <div className="mt-8">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-4">Despesas Financeiras/Impostos</h2>
+                <div className={`mt-8 ${tabela3Expandida ? '' : 'no-print'}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-800">
+                      <span className="text-orange-600 mr-2">&gt;</span>
+                      Despesas Financeiras/Impostos
+                    </h2>
+                    <button
+                      onClick={() => setTabela3Expandida(!tabela3Expandida)}
+                      className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tabela3Expandida ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7"} />
+                      </svg>
+                      {tabela3Expandida ? 'Recolher' : 'Expandir'}
+                    </button>
+                  </div>
+                  {tabela3Expandida && (
                   <div className="table-container">
                     <table className="min-w-full border border-gray-200 text-sm">
                       <thead className="sticky-header bg-orange-600 text-white">
@@ -1198,7 +1387,8 @@ export default function App() {
                       </tbody>
                     </table>
                   </div>
-                  {/* Mini Gráfico Financeiras */}
+                  )}
+                  {tabela3Expandida && (
                   <div className="mt-4 no-print">
                     <ResponsiveContainer width="100%" height={150}>
                       <BarChart data={dadosParaGrafico} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
@@ -1210,22 +1400,40 @@ export default function App() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
+                  )}
                 </div>
 
                 {/* Tabela 4: Despesas com Cartão de Crédito - Formato Pivô */}
-                <div className="mt-8">
+                <div className={`mt-8 ${tabela4Expandida ? '' : 'no-print'}`}>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-800">Despesas com Cartão de Crédito por Filial e Data</h2>
-                    <button
-                      onClick={() => setTabela4Transposta(!tabela4Transposta)}
-                      className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                      </svg>
-                      {tabela4Transposta ? 'Visualização Normal' : 'Inverter Eixos'}
-                    </button>
+                    <h2 className="text-xl font-semibold text-gray-800">
+                      <span className="text-purple-600 mr-2">&gt;</span>
+                      Despesas com Cartão de Crédito por Filial e Data
+                    </h2>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setTabela4Expandida(!tabela4Expandida)}
+                        className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tabela4Expandida ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7"} />
+                        </svg>
+                        {tabela4Expandida ? 'Recolher' : 'Expandir'}
+                      </button>
+                      {tabela4Expandida && (
+                      <button
+                        onClick={() => setTabela4Transposta(!tabela4Transposta)}
+                        className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                        {tabela4Transposta ? 'Visualização Normal' : 'Inverter Eixos'}
+                      </button>
+                      )}
+                    </div>
                   </div>
+                  {tabela4Expandida && (
                   <div className="table-container">{!tabela4Transposta ? (
                     <table className="min-w-full border border-gray-200 text-sm">
                       <thead>
@@ -1374,7 +1582,8 @@ export default function App() {
                     </table>
                   )}
                   </div>
-                  {/* Mini Gráfico Cartão */}
+                  )}
+                  {tabela4Expandida && (
                   <div className="mt-4 no-print">
                     <ResponsiveContainer width="100%" height={150}>
                       <BarChart data={dadosParaGrafico} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
@@ -1386,6 +1595,274 @@ export default function App() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
+                  )}
+                </div>
+
+                {/* Tabela 5: Totalizador por Tipo de Lançamento */}
+                <div className={`mt-8 ${tabela5Expandida ? '' : 'no-print'}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-800">
+                      <span className="text-gray-600 mr-2">&gt;</span>
+                      Totalizador por Tipo de Lançamento e Data
+                    </h2>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setTabela5Expandida(!tabela5Expandida)}
+                        className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tabela5Expandida ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7"} />
+                        </svg>
+                        {tabela5Expandida ? 'Recolher' : 'Expandir'}
+                      </button>
+                      {tabela5Expandida && (
+                      <button
+                        onClick={() => setTabela5Transposta(!tabela5Transposta)}
+                        className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                        {tabela5Transposta ? 'Visualização Normal' : 'Inverter Eixos'}
+                      </button>
+                      )}
+                    </div>
+                  </div>
+                  {tabela5Expandida && (
+                  <div className="table-container">{!tabela5Transposta ? (
+                    <table className="min-w-full border border-gray-200 text-sm">
+                      <thead>
+                        <tr className="sticky-header">
+                          <th rowSpan={2} className="sticky-col-header border border-gray-300 bg-gray-700 text-white px-4 py-3 text-left font-semibold min-w-32">Data</th>
+                          <th rowSpan={2} className="border border-gray-300 bg-gray-700 text-white px-4 py-3 text-left font-semibold min-w-40">Tipo de Lançamento</th>
+                          {filiaisVisiveis.map(filial => (
+                            <th key={filial} colSpan={2} className="border border-gray-300 bg-gray-600 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">{filial}</th>
+                          ))}
+                          <th colSpan={2} className="border border-gray-300 bg-gray-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">Total Geral</th>
+                        </tr>
+                        <tr className="sticky-header-second">
+                          {filiaisVisiveis.map(filial => (
+                            <React.Fragment key={filial}>
+                              <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                              <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
+                            </React.Fragment>
+                          ))}
+                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {datasVisiveis.map((data, dataIdx) => {
+                          const tipos = [
+                            { nome: 'Remessa Bancária', lookup: lookupRemessa, cor: 'bg-blue-50' },
+                            { nome: 'Despesas Pessoal', lookup: lookupPessoal, cor: 'bg-green-50' },
+                            { nome: 'Financ./Impostos', lookup: lookupFinanceiras, cor: 'bg-orange-50' },
+                            { nome: 'Cartão de Crédito', lookup: lookupCartao, cor: 'bg-purple-50' }
+                          ];
+
+                          const linhasTipos = tipos.map((tipo, tipoIdx) => {
+                            const qtdPorFilial = {};
+                            const valPorFilial = {};
+                            let qtdTotal = 0;
+                            let valTotal = 0;
+
+                            filiaisVisiveis.forEach(filial => {
+                              const entry = tipo.lookup[`${filial}_${data}`];
+                              qtdPorFilial[filial] = entry?.quantidade || 0;
+                              valPorFilial[filial] = entry?.valorTotal || 0;
+                              qtdTotal += qtdPorFilial[filial];
+                              valTotal += valPorFilial[filial];
+                            });
+
+                            return (
+                              <tr key={`${data}-${tipoIdx}`} className={`${tipo.cor} hover:bg-gray-100`}>
+                                {tipoIdx === 0 && <td rowSpan={5} className="sticky-col border border-gray-200 px-4 py-3 font-semibold text-gray-800 bg-gray-50">{data}</td>}
+                                <td className="border border-gray-200 px-4 py-2 text-gray-700">{tipo.nome}</td>
+                                {filiaisVisiveis.map(filial => (
+                                  <React.Fragment key={filial}>
+                                    <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
+                                      {qtdPorFilial[filial] || <span className="text-gray-300">—</span>}
+                                    </td>
+                                    <td className="border border-gray-200 px-3 py-2 text-center text-gray-700 whitespace-nowrap">
+                                      {valPorFilial[filial] > 0 ? `R$ ${fmt(valPorFilial[filial])}` : <span className="text-gray-300">—</span>}
+                                    </td>
+                                  </React.Fragment>
+                                ))}
+                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800">
+                                  {qtdTotal || <span className="text-gray-300">—</span>}
+                                </td>
+                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800 whitespace-nowrap">
+                                  {valTotal > 0 ? `R$ ${fmt(valTotal)}` : <span className="text-gray-300">—</span>}
+                                </td>
+                              </tr>
+                            );
+                          });
+
+                          // Linha de Total da Data
+                          let qtdTotalData = {};
+                          let valTotalData = {};
+                          let qtdGeralData = 0;
+                          let valGeralData = 0;
+
+                          filiaisVisiveis.forEach(filial => {
+                            qtdTotalData[filial] = 0;
+                            valTotalData[filial] = 0;
+
+                            tipos.forEach(tipo => {
+                              const entry = tipo.lookup[`${filial}_${data}`];
+                              qtdTotalData[filial] += entry?.quantidade || 0;
+                              valTotalData[filial] += entry?.valorTotal || 0;
+                            });
+
+                            qtdGeralData += qtdTotalData[filial];
+                            valGeralData += valTotalData[filial];
+                          });
+
+                          const linhaTotalData = (
+                            <tr key={`${data}-total`} className="bg-gray-200 font-semibold">
+                              <td className="border border-gray-200 px-4 py-2 text-right text-gray-800">Total {data}:</td>
+                              {filiaisVisiveis.map(filial => (
+                                <React.Fragment key={filial}>
+                                  <td className="border border-gray-200 px-3 py-2 text-center text-gray-800">
+                                    {qtdTotalData[filial] || <span className="text-gray-300">—</span>}
+                                  </td>
+                                  <td className="border border-gray-200 px-3 py-2 text-center text-gray-800 whitespace-nowrap">
+                                    {valTotalData[filial] > 0 ? `R$ ${fmt(valTotalData[filial])}` : <span className="text-gray-300">—</span>}
+                                  </td>
+                                </React.Fragment>
+                              ))}
+                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700">
+                                {qtdGeralData}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700 whitespace-nowrap">
+                                R$ {fmt(valGeralData)}
+                              </td>
+                            </tr>
+                          );
+
+                          return [...linhasTipos, linhaTotalData];
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    // Tabela Transposta: Filiais nas linhas, Datas nas colunas
+                    <table className="min-w-full border border-gray-200 text-sm">
+                      <thead>
+                        <tr className="sticky-header">
+                          <th rowSpan={2} className="sticky-col-header border border-gray-300 bg-gray-700 text-white px-4 py-3 text-left font-semibold min-w-32">Filial</th>
+                          <th rowSpan={2} className="border border-gray-300 bg-gray-700 text-white px-4 py-3 text-left font-semibold min-w-40">Tipo de Lançamento</th>
+                          {datasVisiveis.map(data => (
+                            <th key={data} colSpan={2} className="border border-gray-300 bg-gray-600 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">{data}</th>
+                          ))}
+                          <th colSpan={2} className="border border-gray-300 bg-gray-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">Total Geral</th>
+                        </tr>
+                        <tr className="sticky-header-second">
+                          {datasVisiveis.map(data => (
+                            <React.Fragment key={data}>
+                              <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                              <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
+                            </React.Fragment>
+                          ))}
+                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filiaisVisiveis.map((filial, filialIdx) => {
+                          const tipos = [
+                            { nome: 'Remessa Bancária', lookup: lookupRemessa, cor: 'bg-blue-50' },
+                            { nome: 'Despesas Pessoal', lookup: lookupPessoal, cor: 'bg-green-50' },
+                            { nome: 'Financ./Impostos', lookup: lookupFinanceiras, cor: 'bg-orange-50' },
+                            { nome: 'Cartão de Crédito', lookup: lookupCartao, cor: 'bg-purple-50' }
+                          ];
+
+                          const linhasTipos = tipos.map((tipo, tipoIdx) => {
+                            const qtdPorData = {};
+                            const valPorData = {};
+                            let qtdTotal = 0;
+                            let valTotal = 0;
+
+                            datasVisiveis.forEach(data => {
+                              const entry = tipo.lookup[`${filial}_${data}`];
+                              qtdPorData[data] = entry?.quantidade || 0;
+                              valPorData[data] = entry?.valorTotal || 0;
+                              qtdTotal += qtdPorData[data];
+                              valTotal += valPorData[data];
+                            });
+
+                            return (
+                              <tr key={`${filial}-${tipoIdx}`} className={`${tipo.cor} hover:bg-gray-100`}>
+                                {tipoIdx === 0 && <td rowSpan={5} className="sticky-col border border-gray-200 px-4 py-3 font-semibold text-gray-800 bg-gray-50">{filial}</td>}
+                                <td className="border border-gray-200 px-4 py-2 text-gray-700">{tipo.nome}</td>
+                                {datasVisiveis.map(data => (
+                                  <React.Fragment key={data}>
+                                    <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
+                                      {qtdPorData[data] || <span className="text-gray-300">—</span>}
+                                    </td>
+                                    <td className="border border-gray-200 px-3 py-2 text-center text-gray-700 whitespace-nowrap">
+                                      {valPorData[data] > 0 ? `R$ ${fmt(valPorData[data])}` : <span className="text-gray-300">—</span>}
+                                    </td>
+                                  </React.Fragment>
+                                ))}
+                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800">
+                                  {qtdTotal || <span className="text-gray-300">—</span>}
+                                </td>
+                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800 whitespace-nowrap">
+                                  {valTotal > 0 ? `R$ ${fmt(valTotal)}` : <span className="text-gray-300">—</span>}
+                                </td>
+                              </tr>
+                            );
+                          });
+
+                          // Linha de Total da Filial
+                          let qtdTotalFilial = {};
+                          let valTotalFilial = {};
+                          let qtdGeralFilial = 0;
+                          let valGeralFilial = 0;
+
+                          datasVisiveis.forEach(data => {
+                            qtdTotalFilial[data] = 0;
+                            valTotalFilial[data] = 0;
+
+                            tipos.forEach(tipo => {
+                              const entry = tipo.lookup[`${filial}_${data}`];
+                              qtdTotalFilial[data] += entry?.quantidade || 0;
+                              valTotalFilial[data] += entry?.valorTotal || 0;
+                            });
+
+                            qtdGeralFilial += qtdTotalFilial[data];
+                            valGeralFilial += valTotalFilial[data];
+                          });
+
+                          const linhaTotalFilial = (
+                            <tr key={`${filial}-total`} className="bg-gray-200 font-semibold">
+                              <td className="border border-gray-200 px-4 py-2 text-right text-gray-800">Total {filial}:</td>
+                              {datasVisiveis.map(data => (
+                                <React.Fragment key={data}>
+                                  <td className="border border-gray-200 px-3 py-2 text-center text-gray-800">
+                                    {qtdTotalFilial[data] || <span className="text-gray-300">—</span>}
+                                  </td>
+                                  <td className="border border-gray-200 px-3 py-2 text-center text-gray-800 whitespace-nowrap">
+                                    {valTotalFilial[data] > 0 ? `R$ ${fmt(valTotalFilial[data])}` : <span className="text-gray-300">—</span>}
+                                  </td>
+                                </React.Fragment>
+                              ))}
+                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700">
+                                {qtdGeralFilial}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700 whitespace-nowrap">
+                                R$ {fmt(valGeralFilial)}
+                              </td>
+                            </tr>
+                          );
+
+                          return [...linhasTipos, linhaTotalFilial];
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                  </div>
+                  )}
                 </div>
               </>
             )}
@@ -1395,9 +1872,9 @@ export default function App() {
                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <p className="mt-4">Faça upload de um arquivo CSV para começar</p>
-                <p className="text-sm mt-2">O arquivo CSV deve estar separado por ponto-e-vírgula (;)</p>
-                <p className="text-sm mt-1">Formato esperado: Nome Fantasia, Data de Previsão, Valor da Conta</p>
+                <p className="mt-4">Faça upload de um arquivo para começar</p>
+                <p className="text-sm mt-2">O arquivo {tipoArquivo === 'excel' ? 'Excel' : 'CSV'} deve ter as mesmas colunas do sistema</p>
+                <p className="text-sm mt-1">Colunas: Nome Fantasia, Data de Previsão, Valor da Conta, Categoria, Forma de Pagamento, Conta Corrente</p>
               </div>
             )}
 
