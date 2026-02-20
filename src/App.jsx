@@ -697,12 +697,15 @@ export default function App() {
             height: 140px !important;
             margin-bottom: 3px !important;
             margin-top: 3px !important;
+            max-width: 600px !important;
           }
           .recharts-wrapper {
             height: 140px !important;
+            max-width: 600px !important;
           }
           .recharts-surface {
             height: 140px !important;
+            max-width: 600px !important;
           }
           /* Esconder legenda do gráfico no PDF */
           .recharts-legend-wrapper {
@@ -714,6 +717,17 @@ export default function App() {
             page-break-inside: avoid;
             margin-bottom: 8px !important;
             max-width: 600px !important;
+          }
+          /* Tabelas específicas com largura menor */
+          .tabela-pessoal,
+          .tabela-financeiras,
+          .tabela-cartao {
+            max-width: 400px !important;
+          }
+          .tabela-pessoal table,
+          .tabela-financeiras table,
+          .tabela-cartao table {
+            max-width: 400px !important;
           }
           table { 
             font-size: 6px !important;
@@ -1285,7 +1299,7 @@ export default function App() {
                     </button>
                   </div>
                   {tabela2Expandida && (
-                  <div className="table-container">
+                  <div className="table-container tabela-pessoal">
                     <table className="min-w-full border border-gray-200 text-sm">
                       <thead className="sticky-header bg-green-600 text-white">
                         <tr>
@@ -1376,7 +1390,7 @@ export default function App() {
                     </button>
                   </div>
                   {tabela3Expandida && (
-                  <div className="table-container">
+                  <div className="table-container tabela-financeiras">
                     <table className="min-w-full border border-gray-200 text-sm">
                       <thead className="sticky-header bg-orange-600 text-white">
                         <tr>
@@ -1490,7 +1504,7 @@ export default function App() {
                     </div>
                   </div>
                   {tabela4Expandida && (
-                  <div className="table-container">{!tabela4Transposta ? (
+                  <div className="table-container tabela-cartao">{!tabela4Transposta ? (
                     <table className="min-w-full border border-gray-200 text-sm">
                       <thead>
                         <tr className="sticky-header">
