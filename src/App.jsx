@@ -143,7 +143,8 @@ export default function App() {
               'Valor': valorConvertido,
               'Conta Corrente': limpar(colunas[54]),
               'Forma de Pagamento': limpar(colunas[81]),
-              'Documento': limpar(colunas[75])  // Tipo do Documento
+              'Documento': limpar(colunas[75]),  // Tipo do Documento
+              'Departamento': limpar(colunas[8])
             };
           }).filter(item => item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -218,7 +219,8 @@ export default function App() {
               'Valor': valorConvertido,
               'Conta Corrente': limpar(colunas[54]),
               'Forma de Pagamento': limpar(colunas[81]),
-              'Documento': limpar(colunas[75])  // Tipo do Documento
+              'Documento': limpar(colunas[75]),  // Tipo do Documento
+              'Departamento': limpar(colunas[8])
             };
           }).filter(item => item && item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -333,6 +335,10 @@ export default function App() {
       // Filtrar apenas itens com Forma de Pagamento preenchida
       const formaPagamento = buscarCampo(item, 'Forma de Pagamento', 'forma de pagamento', 'FORMA DE PAGAMENTO');
       if (!formaPagamento || formaPagamento.trim() === '' || formaPagamento === 'N/D') return;
+
+      // Excluir registros com Departamento = Descontos
+      const departamento = buscarCampo(item, 'Departamento', 'departamento', 'DEPARTAMENTO');
+      if (departamento && departamento.toLowerCase().includes('desconto')) return;
 
       const filial = buscarCampo(item, 'Filial', 'filial', 'FILIAL') || 'Sem Filial';
       const dataVencimento = buscarCampo(item, 'Vencimento', 'vencimento', 'VENCIMENTO', 'Data', 'data', 'DATA', 'data_vencimento', 'DATA_VENCIMENTO', 'DataVencimento');
@@ -744,11 +750,13 @@ export default function App() {
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
+            border-width: 0.5px !important;
           }
           th {
             background-color: #4f46e5 !important;
             color: white !important;
             padding: 1px 4px !important;
+            border-width: 0.5px !important;
           }
           /* Ajustar larguras específicas para colunas */
           .min-w-32 {
@@ -1107,16 +1115,18 @@ export default function App() {
                           <th rowSpan={2} className="sticky-col-header border border-gray-300 bg-indigo-600 text-white px-4 py-3 text-left font-semibold min-w-32">
                             Data
                           </th>
+                          <th colSpan={2} className="border border-gray-300 bg-indigo-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">
+                            Total Geral
+                          </th>
                           {filiaisVisiveis.map(filial => (
                             <th key={filial} colSpan={2} className="border border-gray-300 bg-indigo-500 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">
                               {filial}
                             </th>
                           ))}
-                          <th colSpan={2} className="border border-gray-300 bg-indigo-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">
-                            Total Geral
-                          </th>
                         </tr>
                         <tr className="sticky-header-second">
+                          <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                          <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
                           {filiaisVisiveis.map(filial => (
                             <React.Fragment key={filial}>
                               <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
@@ -1134,6 +1144,12 @@ export default function App() {
                           return (
                             <tr key={data} className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50 hover:bg-blue-50'}>
                               <td className="sticky-col border border-gray-200 px-4 py-3 font-medium text-gray-800 whitespace-nowrap">{data}</td>
+                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-indigo-800 bg-indigo-50">
+                                {totalQtd || <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-indigo-800 bg-indigo-50 whitespace-nowrap">
+                                {totalVal > 0 ? `R$ ${fmt(totalVal)}` : <span className="text-gray-300">—</span>}
+                              </td>
                               {filiaisVisiveis.map(filial => {
                                 const entry = lookupRemessa[`${filial}_${data}`];
                                 return (
@@ -1147,12 +1163,6 @@ export default function App() {
                                   </React.Fragment>
                                 );
                               })}
-                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-indigo-800 bg-indigo-50">
-                                {totalQtd || <span className="text-gray-300">—</span>}
-                              </td>
-                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-indigo-800 bg-indigo-50 whitespace-nowrap">
-                                {totalVal > 0 ? `R$ ${fmt(totalVal)}` : <span className="text-gray-300">—</span>}
-                              </td>
                             </tr>
                           );
                         })}
@@ -1416,8 +1426,11 @@ export default function App() {
                             const catNormalizada = categoria ? categoria.trim().toUpperCase() : '';
                             const catEncontrada = catPermitidas.some(cat => cat.toUpperCase() === catNormalizada);
                             
-                            // Inclui se: filial correta E (categoria permitida OU débito automático)
-                            return filialItem === filial && (catEncontrada || isDebitoAutomatico);
+                            // Inclui se: filial correta E ((forma pagamento N/D E categoria permitida) OU débito automático)
+                            return filialItem === filial && (
+                              ((!formaPagamento || formaPagamento === 'N/D' || formaPagamento.trim() === '') && catEncontrada)
+                              || isDebitoAutomatico
+                            );
                           });
                           
                           if (registrosFilial.length === 0) return null;
