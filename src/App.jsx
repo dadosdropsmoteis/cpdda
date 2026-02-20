@@ -716,23 +716,34 @@ export default function App() {
           }
           table { 
             font-size: 6px !important;
-            width: 100% !important;
-            table-layout: fixed !important;
+            width: auto !important;
+            table-layout: auto !important;
             border-collapse: collapse !important;
             margin-bottom: 0 !important;
           }
           th, td { 
-            padding: 0.5px 1.5px !important;
+            padding: 0.5px 3px !important;
             font-size: 6px !important;
             line-height: 1 !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
+            max-width: none !important;
+            width: auto !important;
           }
           th {
             background-color: #4f46e5 !important;
             color: white !important;
-            padding: 1px 1.5px !important;
+            padding: 1px 3px !important;
+          }
+          /* Ajustar larguras específicas para colunas */
+          .min-w-32 {
+            min-width: 50px !important;
+            width: auto !important;
+          }
+          .min-w-40 {
+            min-width: 60px !important;
+            width: auto !important;
           }
           .sticky-col { 
             position: static !important; 
