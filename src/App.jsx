@@ -143,7 +143,7 @@ export default function App() {
               'Valor': valorConvertido,
               'Conta Corrente': limpar(colunas[54]),
               'Forma de Pagamento': limpar(colunas[81]),
-              'Documento': limpar(colunas[20])
+              'Documento': limpar(colunas[45])
             };
           }).filter(item => item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -218,7 +218,7 @@ export default function App() {
               'Valor': valorConvertido,
               'Conta Corrente': limpar(colunas[54]),
               'Forma de Pagamento': limpar(colunas[81]),
-              'Documento': limpar(colunas[20])
+              'Documento': limpar(colunas[45])
             };
           }).filter(item => item && item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
