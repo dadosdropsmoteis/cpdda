@@ -731,6 +731,19 @@ export default function App() {
             max-width: none !important;
             width: auto !important;
           }
+          /* Colunas específicas para largura reduzida */
+          td:first-child, th:first-child {
+            max-width: 80px !important;
+          }
+          td:nth-child(2), th:nth-child(2) {
+            max-width: 60px !important;
+          }
+          td:nth-child(3), th:nth-child(3) {
+            max-width: 100px !important;
+          }
+          td:last-child, th:last-child {
+            max-width: 70px !important;
+          }
           th {
             background-color: #4f46e5 !important;
             color: white !important;
@@ -740,10 +753,12 @@ export default function App() {
           .min-w-32 {
             min-width: 50px !important;
             width: auto !important;
+            max-width: 70px !important;
           }
           .min-w-40 {
             min-width: 60px !important;
             width: auto !important;
+            max-width: 90px !important;
           }
           .sticky-col { 
             position: static !important; 
