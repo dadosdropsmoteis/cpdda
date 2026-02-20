@@ -695,7 +695,8 @@ export default function App() {
           /* Reduzir tamanho do gráfico no PDF */
           .grafico-print {
             height: 140px !important;
-            margin-bottom: 6px !important;
+            margin-bottom: 3px !important;
+            margin-top: 3px !important;
           }
           .recharts-wrapper {
             height: 140px !important;
@@ -711,17 +712,19 @@ export default function App() {
             max-height: none !important;
             overflow: visible !important;
             page-break-inside: avoid;
+            margin-bottom: 8px !important;
           }
           table { 
-            font-size: 6.5px !important;
+            font-size: 6px !important;
             width: 100% !important;
             table-layout: fixed !important;
             border-collapse: collapse !important;
+            margin-bottom: 0 !important;
           }
           th, td { 
-            padding: 1.5px 2px !important;
-            font-size: 6.5px !important;
-            line-height: 1.1 !important;
+            padding: 0.5px 1.5px !important;
+            font-size: 6px !important;
+            line-height: 1 !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
@@ -729,6 +732,7 @@ export default function App() {
           th {
             background-color: #4f46e5 !important;
             color: white !important;
+            padding: 1px 1.5px !important;
           }
           .sticky-col { 
             position: static !important; 
@@ -739,6 +743,20 @@ export default function App() {
           .sticky-header th,
           .sticky-header-second th {
             position: static !important;
+          }
+          h2 {
+            font-size: 9px !important;
+            margin: 4px 0 2px 0 !important;
+            padding: 0 !important;
+          }
+          /* Reduzir espaçamento entre seções */
+          .mt-8 {
+            margin-top: 6px !important;
+          }
+          /* Reduzir espaçamento nos cards de resumo */
+          .grid {
+            gap: 4px !important;
+            margin-bottom: 6px !important;
           }
         }
         .table-container {
