@@ -662,8 +662,8 @@ export default function App() {
       <style>{`
         @media print {
           @page { 
-            size: A4 landscape; 
-            margin: 6mm; 
+            size: A4 portrait; 
+            margin: 10mm; 
           }
           * {
             -webkit-print-color-adjust: exact !important;
