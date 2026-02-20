@@ -1834,20 +1834,20 @@ export default function App() {
                         <tr className="sticky-header">
                           <th rowSpan={2} className="sticky-col-header border border-gray-300 bg-gray-700 text-white px-4 py-3 text-left font-semibold min-w-32">Filial</th>
                           <th rowSpan={2} className="border border-gray-300 bg-gray-700 text-white px-4 py-3 text-left font-semibold min-w-40">Tipo de Lançamento</th>
+                          <th colSpan={2} className="border border-gray-300 bg-gray-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">Total Geral</th>
                           {datasVisiveis.map(data => (
                             <th key={data} colSpan={2} className="border border-gray-300 bg-gray-600 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">{data}</th>
                           ))}
-                          <th colSpan={2} className="border border-gray-300 bg-gray-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">Total Geral</th>
                         </tr>
                         <tr className="sticky-header-second">
+                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
                           {datasVisiveis.map(data => (
                             <React.Fragment key={data}>
                               <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
                               <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
                             </React.Fragment>
                           ))}
-                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
-                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1877,6 +1877,12 @@ export default function App() {
                               <tr key={`${filial}-${tipoIdx}`} className={`${tipo.cor} hover:bg-gray-100`}>
                                 {tipoIdx === 0 && <td rowSpan={5} className="sticky-col border border-gray-200 px-4 py-3 font-semibold text-gray-800 bg-gray-50">{filial}</td>}
                                 <td className="border border-gray-200 px-4 py-2 text-gray-700">{tipo.nome}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800">
+                                  {qtdTotal || <span className="text-gray-300">—</span>}
+                                </td>
+                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800 whitespace-nowrap">
+                                  {valTotal > 0 ? `R$ ${fmt(valTotal)}` : <span className="text-gray-300">—</span>}
+                                </td>
                                 {datasVisiveis.map(data => (
                                   <React.Fragment key={data}>
                                     <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
@@ -1887,12 +1893,6 @@ export default function App() {
                                     </td>
                                   </React.Fragment>
                                 ))}
-                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800">
-                                  {qtdTotal || <span className="text-gray-300">—</span>}
-                                </td>
-                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800 whitespace-nowrap">
-                                  {valTotal > 0 ? `R$ ${fmt(valTotal)}` : <span className="text-gray-300">—</span>}
-                                </td>
                               </tr>
                             );
                           });
@@ -1920,6 +1920,12 @@ export default function App() {
                           const linhaTotalFilial = (
                             <tr key={`${filial}-total`} className="bg-gray-200 font-semibold">
                               <td className="border border-gray-200 px-4 py-2 text-right text-gray-800">Total {filial}:</td>
+                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700">
+                                {qtdGeralFilial}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700 whitespace-nowrap">
+                                R$ {fmt(valGeralFilial)}
+                              </td>
                               {datasVisiveis.map(data => (
                                 <React.Fragment key={data}>
                                   <td className="border border-gray-200 px-3 py-2 text-center text-gray-800">
@@ -1930,12 +1936,6 @@ export default function App() {
                                   </td>
                                 </React.Fragment>
                               ))}
-                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700">
-                                {qtdGeralFilial}
-                              </td>
-                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700 whitespace-nowrap">
-                                R$ {fmt(valGeralFilial)}
-                              </td>
                             </tr>
                           );
 
