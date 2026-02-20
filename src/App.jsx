@@ -22,6 +22,10 @@ export default function App() {
   const [tabela5Expandida, setTabela5Expandida] = useState(true);
   const [filtroFilialAberto, setFiltroFilialAberto] = useState(false);
   const [filtroDataAberto, setFiltroDataAberto] = useState(false);
+  const [modalCNPJAberto, setModalCNPJAberto] = useState(false);
+  const [cnpjBusca, setCnpjBusca] = useState('');
+  const [registrosEncontrados, setRegistrosEncontrados] = useState([]);
+  const [valoresAdicionais, setValoresAdicionais] = useState({});
 
   // Ordem customizada das filiais
   const ordemFiliais = {
@@ -144,7 +148,8 @@ export default function App() {
               'Conta Corrente': limpar(colunas[54]),
               'Forma de Pagamento': limpar(colunas[81]),
               'Documento': limpar(colunas[75]),  // Tipo do Documento
-              'Departamento': limpar(colunas[8])
+              'Departamento': limpar(colunas[8]),
+              'CNPJ/CPF': limpar(colunas[58])  // CNPJ/CPF coluna 59
             };
           }).filter(item => item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -220,7 +225,8 @@ export default function App() {
               'Conta Corrente': limpar(colunas[54]),
               'Forma de Pagamento': limpar(colunas[81]),
               'Documento': limpar(colunas[75]),  // Tipo do Documento
-              'Departamento': limpar(colunas[8])
+              'Departamento': limpar(colunas[8]),
+              'CNPJ/CPF': limpar(colunas[58])  // CNPJ/CPF coluna 59
             };
           }).filter(item => item && item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -663,6 +669,67 @@ export default function App() {
 
   const fmt = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  // Função para buscar registros por CNPJ
+  const buscarPorCNPJ = () => {
+    if (!cnpjBusca.trim()) {
+      alert('Digite um CNPJ/CPF para buscar');
+      return;
+    }
+
+    // Limpar CNPJ (remover pontuação)
+    const cnpjLimpo = cnpjBusca.replace(/[^\d]/g, '');
+
+    // Buscar registros que correspondem à Remessa Bancária
+    const registros = dados.filter(item => {
+      const formaPagamento = buscarCampo(item, 'Forma de Pagamento');
+      const departamento = buscarCampo(item, 'Departamento');
+      const cnpjItem = buscarCampo(item, 'CNPJ/CPF') || '';
+      const cnpjItemLimpo = cnpjItem.replace(/[^\d]/g, '');
+
+      // Deve ter forma de pagamento preenchida e não ser Descontos
+      if (!formaPagamento || formaPagamento.trim() === '' || formaPagamento === 'N/D') return false;
+      if (departamento && departamento.toLowerCase().includes('desconto')) return false;
+
+      // Comparar CNPJ
+      return cnpjItemLimpo === cnpjLimpo;
+    });
+
+    setRegistrosEncontrados(registros);
+    
+    // Inicializar valores adicionais como 0
+    const valoresIniciais = {};
+    registros.forEach((item, idx) => {
+      valoresIniciais[idx] = 0;
+    });
+    setValoresAdicionais(valoresIniciais);
+  };
+
+  const fecharModal = () => {
+    setModalCNPJAberto(false);
+    setCnpjBusca('');
+    setRegistrosEncontrados([]);
+    setValoresAdicionais({});
+  };
+
+  const aplicarValoresAdicionais = () => {
+    // Aplicar os valores adicionais aos registros encontrados
+    registrosEncontrados.forEach((item, idx) => {
+      const valorAdicional = parseFloat(valoresAdicionais[idx]) || 0;
+      if (valorAdicional !== 0) {
+        const valorAtual = parsearValor(buscarCampo(item, 'Valor'));
+        const novoValor = valorAtual + valorAdicional;
+        // Atualizar o valor no item (formatar como string)
+        const novoValorFormatado = novoValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        item['Valor'] = novoValorFormatado;
+      }
+    });
+
+    // Forçar atualização dos dados
+    setDados([...dados]);
+    fecharModal();
+    alert('Valores aplicados com sucesso!');
+  };
+
   return (
     <>
       <style>{`
@@ -1094,6 +1161,7 @@ export default function App() {
                         {tabela1Expandida ? 'Recolher' : 'Expandir'}
                       </button>
                       {tabela1Expandida && (
+                        <>
                         <button
                           onClick={() => setTabelaTransposta(!tabelaTransposta)}
                           className="no-print flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
@@ -1103,6 +1171,16 @@ export default function App() {
                           </svg>
                           {tabelaTransposta ? 'Visualização Normal' : 'Inverter Eixos'}
                         </button>
+                        <button
+                          onClick={() => setModalCNPJAberto(true)}
+                          className="no-print flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          Buscar por CNPJ
+                        </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -1406,7 +1484,9 @@ export default function App() {
                         <tr>
                           <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Filial</th>
                           <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Data</th>
+                          <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Conta Corrente</th>
                           <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Categoria</th>
+                          <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Forma de Pagamento</th>
                           <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Valor</th>
                         </tr>
                       </thead>
@@ -1444,20 +1524,24 @@ export default function App() {
                             <React.Fragment key={filial}>
                               {registrosFilial.map((item, idx) => {
                                 const data = buscarCampo(item, 'Vencimento');
+                                const contaCorrente = buscarCampo(item, 'Conta Corrente');
                                 const categoria = buscarCampo(item, 'Categoria');
+                                const formaPagamento = buscarCampo(item, 'Forma de Pagamento');
                                 const valorRaw = buscarCampo(item, 'Valor');
                                 const valor = parsearValor(valorRaw);
                                 return (
                                   <tr key={`${filial}-${idx}`} className="bg-white hover:bg-orange-50">
                                     {idx === 0 && <td rowSpan={registrosFilial.length + 1} className="border border-gray-200 px-4 py-2 font-semibold bg-orange-50">{filial}</td>}
                                     <td className="border border-gray-200 px-4 py-2">{data}</td>
+                                    <td className="border border-gray-200 px-4 py-2">{contaCorrente || '—'}</td>
                                     <td className="border border-gray-200 px-4 py-2">{categoria}</td>
+                                    <td className="border border-gray-200 px-4 py-2">{formaPagamento || '—'}</td>
                                     <td className="border border-gray-200 px-4 py-2 text-right">R$ {fmt(valor)}</td>
                                   </tr>
                                 );
                               })}
                               <tr className="bg-orange-100 font-semibold">
-                                <td colSpan={2} className="border border-gray-200 px-4 py-2 text-right">Total {filial}:</td>
+                                <td colSpan={4} className="border border-gray-200 px-4 py-2 text-right">Total {filial}:</td>
                                 <td className="border border-gray-200 px-4 py-2 text-right">
                                   {registrosFilial.length} registro{registrosFilial.length > 1 ? 's' : ''} | R$ {fmt(totalFilial)}
                                 </td>
@@ -1964,6 +2048,116 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Busca por CNPJ */}
+      {modalCNPJAberto && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">Buscar Registros por CNPJ/CPF</h2>
+              <button onClick={fecharModal} className="text-gray-500 hover:text-gray-700">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">CNPJ/CPF</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={cnpjBusca}
+                  onChange={(e) => setCnpjBusca(e.target.value)}
+                  placeholder="Digite o CNPJ ou CPF"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <button
+                  onClick={buscarPorCNPJ}
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  Buscar
+                </button>
+              </div>
+            </div>
+
+            {registrosEncontrados.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-gray-800">
+                  {registrosEncontrados.length} registro(s) encontrado(s)
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border border-gray-200 text-sm">
+                    <thead className="bg-indigo-600 text-white">
+                      <tr>
+                        <th className="border border-gray-300 px-4 py-2 text-left">Filial</th>
+                        <th className="border border-gray-300 px-4 py-2 text-left">Data</th>
+                        <th className="border border-gray-300 px-4 py-2 text-left">Categoria</th>
+                        <th className="border border-gray-300 px-4 py-2 text-right">Valor Atual</th>
+                        <th className="border border-gray-300 px-4 py-2 text-center">Valor Adicional</th>
+                        <th className="border border-gray-300 px-4 py-2 text-right">Valor Final</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registrosEncontrados.map((item, idx) => {
+                        const filial = buscarCampo(item, 'Filial');
+                        const data = buscarCampo(item, 'Vencimento');
+                        const categoria = buscarCampo(item, 'Categoria');
+                        const valorAtual = parsearValor(buscarCampo(item, 'Valor'));
+                        const valorAdicional = parseFloat(valoresAdicionais[idx]) || 0;
+                        const valorFinal = valorAtual + valorAdicional;
+
+                        return (
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="border border-gray-200 px-4 py-2">{filial}</td>
+                            <td className="border border-gray-200 px-4 py-2">{data}</td>
+                            <td className="border border-gray-200 px-4 py-2">{categoria}</td>
+                            <td className="border border-gray-200 px-4 py-2 text-right">R$ {fmt(valorAtual)}</td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={valoresAdicionais[idx] || ''}
+                                onChange={(e) => setValoresAdicionais({...valoresAdicionais, [idx]: e.target.value})}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-right"
+                                placeholder="0,00"
+                              />
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right font-semibold text-indigo-700">
+                              R$ {fmt(valorFinal)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    onClick={fecharModal}
+                    className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={aplicarValoresAdicionais}
+                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors"
+                  >
+                    Aplicar Valores
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {registrosEncontrados.length === 0 && cnpjBusca && (
+              <div className="text-center py-8 text-gray-500">
+                <p>Nenhum registro encontrado para este CNPJ/CPF</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
