@@ -143,7 +143,7 @@ export default function App() {
               'Valor': valorConvertido,
               'Conta Corrente': limpar(colunas[54]),
               'Forma de Pagamento': limpar(colunas[81]),
-              'Documento': limpar(colunas[45])
+              'Documento': limpar(colunas[75])  // Tipo do Documento
             };
           }).filter(item => item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -218,7 +218,7 @@ export default function App() {
               'Valor': valorConvertido,
               'Conta Corrente': limpar(colunas[54]),
               'Forma de Pagamento': limpar(colunas[81]),
-              'Documento': limpar(colunas[45])
+              'Documento': limpar(colunas[75])  // Tipo do Documento
             };
           }).filter(item => item && item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -1367,12 +1367,12 @@ export default function App() {
                             // Verifica se é Débito Automático
                             const isDebitoAutomatico = documento && documento.toLowerCase().includes('débito automático');
                             
-                            // Inclui se: (forma pagamento vazia E categoria permitida) OU débito automático
-                            return filialItem === filial && (
-                              ((!formaPagamento || formaPagamento === 'N/D' || formaPagamento.trim() === '') 
-                                && categoria && catPermitidas.includes(categoria.trim()))
-                              || isDebitoAutomatico
-                            );
+                            // Normalizar categoria para comparação (remover maiúsculas/minúsculas)
+                            const catNormalizada = categoria ? categoria.trim().toUpperCase() : '';
+                            const catEncontrada = catPermitidas.some(cat => cat.toUpperCase() === catNormalizada);
+                            
+                            // Inclui se: filial correta E (categoria permitida OU débito automático)
+                            return filialItem === filial && (catEncontrada || isDebitoAutomatico);
                           });
                           
                           if (registrosFilial.length === 0) return null;
