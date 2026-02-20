@@ -713,41 +713,28 @@ export default function App() {
             overflow: visible !important;
             page-break-inside: avoid;
             margin-bottom: 8px !important;
+            max-width: 600px !important;
           }
           table { 
             font-size: 6px !important;
             width: auto !important;
+            max-width: 600px !important;
             table-layout: auto !important;
             border-collapse: collapse !important;
             margin-bottom: 0 !important;
           }
           th, td { 
-            padding: 0.5px 3px !important;
+            padding: 0.5px 4px !important;
             font-size: 6px !important;
             line-height: 1 !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
-            max-width: none !important;
-            width: auto !important;
-          }
-          /* Colunas específicas para largura reduzida */
-          td:first-child, th:first-child {
-            max-width: 80px !important;
-          }
-          td:nth-child(2), th:nth-child(2) {
-            max-width: 60px !important;
-          }
-          td:nth-child(3), th:nth-child(3) {
-            max-width: 100px !important;
-          }
-          td:last-child, th:last-child {
-            max-width: 70px !important;
           }
           th {
             background-color: #4f46e5 !important;
             color: white !important;
-            padding: 1px 3px !important;
+            padding: 1px 4px !important;
           }
           /* Ajustar larguras específicas para colunas */
           .min-w-32 {
