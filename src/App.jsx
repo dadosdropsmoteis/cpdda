@@ -736,7 +736,7 @@ export default function App() {
             max-width: 400px !important;
           }
           table { 
-            font-size: 6px !important;
+            font-size: 7.5px !important;
             width: auto !important;
             max-width: 600px !important;
             table-layout: auto !important;
@@ -744,9 +744,9 @@ export default function App() {
             margin-bottom: 0 !important;
           }
           th, td { 
-            padding: 0.5px 4px !important;
-            font-size: 6px !important;
-            line-height: 1 !important;
+            padding: 1px 4px !important;
+            font-size: 7.5px !important;
+            line-height: 1.1 !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
@@ -755,7 +755,7 @@ export default function App() {
           th {
             background-color: #4f46e5 !important;
             color: white !important;
-            padding: 1px 4px !important;
+            padding: 1.5px 4px !important;
             border-width: 0.5px !important;
           }
           /* Ajustar larguras específicas para colunas */
@@ -1198,24 +1198,24 @@ export default function App() {
                           <th rowSpan={2} className="sticky-col-header border border-gray-300 bg-indigo-600 text-white px-4 py-3 text-left font-semibold min-w-32">
                             Filial
                           </th>
+                          <th colSpan={2} className="border border-gray-300 bg-indigo-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">
+                            Total Geral
+                          </th>
                           {datasRemessaVisiveis.map(data => (
                             <th key={data} colSpan={2} className="border border-gray-300 bg-indigo-500 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">
                               {data}
                             </th>
                           ))}
-                          <th colSpan={2} className="border border-gray-300 bg-indigo-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">
-                            Total Geral
-                          </th>
                         </tr>
                         <tr className="sticky-header-second">
+                          <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                          <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
                           {datasRemessaVisiveis.map(data => (
                             <React.Fragment key={data}>
                               <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
                               <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
                             </React.Fragment>
                           ))}
-                          <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
-                          <th className="border border-gray-300 bg-indigo-100 text-indigo-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1225,6 +1225,12 @@ export default function App() {
                           return (
                             <tr key={filial} className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50 hover:bg-blue-50'}>
                               <td className="sticky-col border border-gray-200 px-4 py-3 font-medium text-gray-800 whitespace-nowrap">{filial}</td>
+                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-indigo-800 bg-indigo-50">
+                                {totalQtd || <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-indigo-800 bg-indigo-50 whitespace-nowrap">
+                                {totalVal > 0 ? `R$ ${fmt(totalVal)}` : <span className="text-gray-300">—</span>}
+                              </td>
                               {datasRemessaVisiveis.map(data => {
                                 const entry = lookupRemessa[`${filial}_${data}`];
                                 return (
@@ -1238,18 +1244,18 @@ export default function App() {
                                   </React.Fragment>
                                 );
                               })}
-                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-indigo-800 bg-indigo-50">
-                                {totalQtd || <span className="text-gray-300">—</span>}
-                              </td>
-                              <td className="border border-gray-200 px-3 py-3 text-center font-semibold text-indigo-800 bg-indigo-50 whitespace-nowrap">
-                                {totalVal > 0 ? `R$ ${fmt(totalVal)}` : <span className="text-gray-300">—</span>}
-                              </td>
                             </tr>
                           );
                         })}
                         {/* Linha de totais */}
                         <tr className="bg-indigo-50 font-semibold border-t-2 border-indigo-300">
                           <td className="sticky-col border border-gray-300 px-4 py-3 text-indigo-800 bg-indigo-50">Total</td>
+                          <td className="border border-gray-300 px-3 py-3 text-center text-white bg-indigo-700 font-bold">
+                            {filiaisVisiveis.reduce((s, f) => s + datasRemessaVisiveis.reduce((ss, d) => ss + (lookupRemessa[`${f}_${d}`]?.quantidade || 0), 0), 0)}
+                          </td>
+                          <td className="border border-gray-300 px-3 py-3 text-center text-white bg-indigo-700 font-bold whitespace-nowrap">
+                            R$ {fmt(filiaisVisiveis.reduce((s, f) => s + datasRemessaVisiveis.reduce((ss, d) => ss + (lookupRemessa[`${f}_${d}`]?.valorTotal || 0), 0), 0))}
+                          </td>
                           {datasRemessaVisiveis.map(data => {
                             const qtd = filiaisVisiveis.reduce((s, f) => s + (lookupRemessa[`${f}_${data}`]?.quantidade || 0), 0);
                             const val = filiaisVisiveis.reduce((s, f) => s + (lookupRemessa[`${f}_${data}`]?.valorTotal || 0), 0);
@@ -1262,12 +1268,6 @@ export default function App() {
                               </React.Fragment>
                             );
                           })}
-                          <td className="border border-gray-300 px-3 py-3 text-center text-white bg-indigo-700 font-bold">
-                            {filiaisVisiveis.reduce((s, f) => s + datasRemessaVisiveis.reduce((ss, d) => ss + (lookupRemessa[`${f}_${d}`]?.quantidade || 0), 0), 0)}
-                          </td>
-                          <td className="border border-gray-300 px-3 py-3 text-center text-white bg-indigo-700 font-bold whitespace-nowrap">
-                            R$ {fmt(filiaisVisiveis.reduce((s, f) => s + datasRemessaVisiveis.reduce((ss, d) => ss + (lookupRemessa[`${f}_${d}`]?.valorTotal || 0), 0), 0))}
-                          </td>
                         </tr>
                       </tbody>
                     </table>
@@ -1718,20 +1718,20 @@ export default function App() {
                         <tr className="sticky-header">
                           <th rowSpan={2} className="sticky-col-header border border-gray-300 bg-gray-700 text-white px-4 py-3 text-left font-semibold min-w-32">Data</th>
                           <th rowSpan={2} className="sticky-col-2-header border border-gray-300 bg-gray-700 text-white px-4 py-3 text-left font-semibold min-w-40">Tipo de Lançamento</th>
+                          <th colSpan={2} className="border border-gray-300 bg-gray-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">Total Geral</th>
                           {filiaisVisiveis.map(filial => (
                             <th key={filial} colSpan={2} className="border border-gray-300 bg-gray-600 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">{filial}</th>
                           ))}
-                          <th colSpan={2} className="border border-gray-300 bg-gray-800 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">Total Geral</th>
                         </tr>
                         <tr className="sticky-header-second">
+                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
+                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
                           {filiaisVisiveis.map(filial => (
                             <React.Fragment key={filial}>
                               <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
                               <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
                             </React.Fragment>
                           ))}
-                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Qtd</th>
-                          <th className="border border-gray-300 bg-gray-100 text-gray-800 px-3 py-2 text-center font-medium whitespace-nowrap">Valor Total</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1761,6 +1761,12 @@ export default function App() {
                               <tr key={`${data}-${tipoIdx}`} className={`${tipo.cor} hover:bg-gray-100`}>
                                 {tipoIdx === 0 && <td rowSpan={5} className="sticky-col border border-gray-200 px-4 py-3 font-semibold text-gray-800 bg-gray-50">{data}</td>}
                                 <td className="sticky-col-2 border border-gray-200 px-4 py-2 text-gray-700">{tipo.nome}</td>
+                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800">
+                                  {qtdTotal || <span className="text-gray-300">—</span>}
+                                </td>
+                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800 whitespace-nowrap">
+                                  {valTotal > 0 ? `R$ ${fmt(valTotal)}` : <span className="text-gray-300">—</span>}
+                                </td>
                                 {filiaisVisiveis.map(filial => (
                                   <React.Fragment key={filial}>
                                     <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
@@ -1771,12 +1777,6 @@ export default function App() {
                                     </td>
                                   </React.Fragment>
                                 ))}
-                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800">
-                                  {qtdTotal || <span className="text-gray-300">—</span>}
-                                </td>
-                                <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-800 whitespace-nowrap">
-                                  {valTotal > 0 ? `R$ ${fmt(valTotal)}` : <span className="text-gray-300">—</span>}
-                                </td>
                               </tr>
                             );
                           });
@@ -1804,6 +1804,12 @@ export default function App() {
                           const linhaTotalData = (
                             <tr key={`${data}-total`} className="bg-gray-200 font-semibold">
                               <td className="sticky-col-2 border border-gray-200 px-4 py-2 text-right text-gray-800">Total {data}:</td>
+                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700">
+                                {qtdGeralData}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700 whitespace-nowrap">
+                                R$ {fmt(valGeralData)}
+                              </td>
                               {filiaisVisiveis.map(filial => (
                                 <React.Fragment key={filial}>
                                   <td className="border border-gray-200 px-3 py-2 text-center text-gray-800">
@@ -1814,12 +1820,6 @@ export default function App() {
                                   </td>
                                 </React.Fragment>
                               ))}
-                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700">
-                                {qtdGeralData}
-                              </td>
-                              <td className="border border-gray-200 px-3 py-2 text-center font-bold text-white bg-gray-700 whitespace-nowrap">
-                                R$ {fmt(valGeralData)}
-                              </td>
                             </tr>
                           );
 
