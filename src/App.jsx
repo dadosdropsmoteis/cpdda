@@ -142,7 +142,8 @@ export default function App() {
               'Vencimento': dataFormatada,
               'Valor': valorConvertido,
               'Conta Corrente': limpar(colunas[54]),
-              'Forma de Pagamento': limpar(colunas[81])
+              'Forma de Pagamento': limpar(colunas[81]),
+              'Documento': limpar(colunas[20])
             };
           }).filter(item => item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -216,7 +217,8 @@ export default function App() {
               'Vencimento': dataFormatada,
               'Valor': valorConvertido,
               'Conta Corrente': limpar(colunas[54]),
-              'Forma de Pagamento': limpar(colunas[81])
+              'Forma de Pagamento': limpar(colunas[81]),
+              'Documento': limpar(colunas[20])
             };
           }).filter(item => item && item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -1359,10 +1361,18 @@ export default function App() {
                             const formaPagamento = buscarCampo(item, 'Forma de Pagamento');
                             const categoria = buscarCampo(item, 'Categoria');
                             const filialItem = buscarCampo(item, 'Filial');
+                            const documento = buscarCampo(item, 'Documento');
                             const catPermitidas = ['Energia Eletrica e Gas', 'ICMS', 'Impostos e Taxas Diversas', 'ISS', 'Pagamento de Empréstimos', 'Seguros'];
-                            return (!formaPagamento || formaPagamento === 'N/D' || formaPagamento.trim() === '') 
-                              && categoria && catPermitidas.includes(categoria.trim())
-                              && filialItem === filial;
+                            
+                            // Verifica se é Débito Automático
+                            const isDebitoAutomatico = documento && documento.toLowerCase().includes('débito automático');
+                            
+                            // Inclui se: (forma pagamento vazia E categoria permitida) OU débito automático
+                            return filialItem === filial && (
+                              ((!formaPagamento || formaPagamento === 'N/D' || formaPagamento.trim() === '') 
+                                && categoria && catPermitidas.includes(categoria.trim()))
+                              || isDebitoAutomatico
+                            );
                           });
                           
                           if (registrosFilial.length === 0) return null;
