@@ -8,13 +8,13 @@ export default function App() {
   const [filiaisSelecionadas, setFiliaisSelecionadas] = useState([]);
   const [datasSelecionadas, setDatasSelecionadas] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [tabelaTransposta, setTabelaTransposta] = useState(false);
+  const [tabelaTransposta, setTabelaTransposta] = useState(true); // Começa invertida
   const [tipoArquivo, setTipoArquivo] = useState('csv'); // 'excel' ou 'csv'
   const [tipoGrafico, setTipoGrafico] = useState('data'); // 'data' ou 'filial'
   const [tabela2Transposta, setTabela2Transposta] = useState(false);
   const [tabela3Transposta, setTabela3Transposta] = useState(false);
   const [tabela4Transposta, setTabela4Transposta] = useState(false);
-  const [tabela5Transposta, setTabela5Transposta] = useState(false);
+  const [tabela5Transposta, setTabela5Transposta] = useState(true); // Começa invertida
   const [tabela1Expandida, setTabela1Expandida] = useState(true);
   const [tabela2Expandida, setTabela2Expandida] = useState(true);
   const [tabela3Expandida, setTabela3Expandida] = useState(true);
@@ -24,6 +24,7 @@ export default function App() {
   const [filtroDataAberto, setFiltroDataAberto] = useState(false);
   const [modalCNPJAberto, setModalCNPJAberto] = useState(false);
   const [cnpjBusca, setCnpjBusca] = useState('');
+  const [tipoBusca, setTipoBusca] = useState('cnpj'); // 'cnpj' ou 'razao'
   const [registrosEncontrados, setRegistrosEncontrados] = useState([]);
   const [valoresAdicionais, setValoresAdicionais] = useState({});
 
@@ -149,7 +150,8 @@ export default function App() {
               'Forma de Pagamento': limpar(colunas[81]),
               'Documento': limpar(colunas[75]),  // Tipo do Documento
               'Departamento': limpar(colunas[8]),
-              'CNPJ/CPF': limpar(colunas[58])  // CNPJ/CPF coluna 59
+              'CNPJ/CPF': limpar(colunas[58]),  // CNPJ/CPF coluna 59
+              'Razão Social': limpar(colunas[60])  // Razão Social coluna 61
             };
           }).filter(item => item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -226,7 +228,8 @@ export default function App() {
               'Forma de Pagamento': limpar(colunas[81]),
               'Documento': limpar(colunas[75]),  // Tipo do Documento
               'Departamento': limpar(colunas[8]),
-              'CNPJ/CPF': limpar(colunas[58])  // CNPJ/CPF coluna 59
+              'CNPJ/CPF': limpar(colunas[58]),  // CNPJ/CPF coluna 59
+              'Razão Social': limpar(colunas[60])  // Razão Social coluna 61
             };
           }).filter(item => item && item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -669,31 +672,39 @@ export default function App() {
 
   const fmt = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // Função para buscar registros por CNPJ
+  // Função para buscar registros por CNPJ ou Razão Social
   const buscarPorCNPJ = () => {
     if (!cnpjBusca.trim()) {
-      alert('Digite um CNPJ/CPF para buscar');
+      alert('Digite um CNPJ/CPF ou Razão Social para buscar');
       return;
     }
 
-    // Limpar CNPJ (remover pontuação)
-    const cnpjLimpo = cnpjBusca.replace(/[^\d]/g, '');
+    const termoBusca = cnpjBusca.trim().toLowerCase();
 
     // Buscar registros que correspondem à Remessa Bancária
     const registros = dados.filter(item => {
       const formaPagamento = buscarCampo(item, 'Forma de Pagamento');
       const departamento = buscarCampo(item, 'Departamento');
-      const cnpjItem = buscarCampo(item, 'CNPJ/CPF') || '';
-      const cnpjItemLimpo = cnpjItem.replace(/[^\d]/g, '');
 
       // Não ser Descontos
       if (departamento && departamento.toLowerCase().includes('desconto')) return false;
 
       // Deve ter forma de pagamento preenchida (qualquer uma exceto vazio ou N/D)
       const temFormaPagamento = formaPagamento && formaPagamento.trim() !== '' && formaPagamento !== 'N/D';
+      if (!temFormaPagamento) return false;
 
-      // Comparar CNPJ
-      return cnpjItemLimpo === cnpjLimpo && temFormaPagamento;
+      // Buscar por CNPJ ou Razão Social
+      if (tipoBusca === 'cnpj') {
+        const cnpjItem = buscarCampo(item, 'CNPJ/CPF') || '';
+        const cnpjItemLimpo = cnpjItem.replace(/[^\d]/g, '');
+        const cnpjBuscaLimpo = termoBusca.replace(/[^\d]/g, '');
+        // Busca parcial
+        return cnpjItemLimpo.includes(cnpjBuscaLimpo);
+      } else {
+        const razaoSocial = buscarCampo(item, 'Razão Social') || '';
+        // Busca parcial case-insensitive
+        return razaoSocial.toLowerCase().includes(termoBusca);
+      }
     });
 
     setRegistrosEncontrados(registros);
@@ -709,6 +720,7 @@ export default function App() {
   const fecharModal = () => {
     setModalCNPJAberto(false);
     setCnpjBusca('');
+    setTipoBusca('cnpj');
     setRegistrosEncontrados([]);
     setValoresAdicionais({});
   };
@@ -1178,9 +1190,9 @@ export default function App() {
                           className="no-print flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Buscar por CNPJ
+                          Taxa Boleto
                         </button>
                         </>
                       )}
@@ -2058,12 +2070,12 @@ export default function App() {
         </div>
       </div>
 
-      {/* Modal de Busca por CNPJ */}
+      {/* Modal de Taxa Boleto */}
       {modalCNPJAberto && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">Buscar Registros por CNPJ/CPF</h2>
+              <h2 className="text-2xl font-bold text-gray-800">Taxa Boleto - Adicionar Valor Extra</h2>
               <button onClick={fecharModal} className="text-gray-500 hover:text-gray-700">
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2072,13 +2084,38 @@ export default function App() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">CNPJ/CPF</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Busca</label>
+              <div className="flex gap-4 mb-3">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="cnpj"
+                    checked={tipoBusca === 'cnpj'}
+                    onChange={(e) => setTipoBusca(e.target.value)}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">CNPJ/CPF (busca parcial)</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="razao"
+                    checked={tipoBusca === 'razao'}
+                    onChange={(e) => setTipoBusca(e.target.value)}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">Razão Social (busca parcial)</span>
+                </label>
+              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {tipoBusca === 'cnpj' ? 'CNPJ/CPF' : 'Razão Social'}
+              </label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={cnpjBusca}
                   onChange={(e) => setCnpjBusca(e.target.value)}
-                  placeholder="Digite o CNPJ ou CPF"
+                  placeholder={tipoBusca === 'cnpj' ? 'Digite parte do CNPJ ou CPF' : 'Digite parte da Razão Social'}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
                 <button
