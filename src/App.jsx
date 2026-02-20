@@ -686,12 +686,14 @@ export default function App() {
       const cnpjItem = buscarCampo(item, 'CNPJ/CPF') || '';
       const cnpjItemLimpo = cnpjItem.replace(/[^\d]/g, '');
 
-      // Deve ter forma de pagamento preenchida e não ser Descontos
-      if (!formaPagamento || formaPagamento.trim() === '' || formaPagamento === 'N/D') return false;
+      // Não ser Descontos
       if (departamento && departamento.toLowerCase().includes('desconto')) return false;
 
+      // Deve ter forma de pagamento preenchida (qualquer uma exceto vazio ou N/D)
+      const temFormaPagamento = formaPagamento && formaPagamento.trim() !== '' && formaPagamento !== 'N/D';
+
       // Comparar CNPJ
-      return cnpjItemLimpo === cnpjLimpo;
+      return cnpjItemLimpo === cnpjLimpo && temFormaPagamento;
     });
 
     setRegistrosEncontrados(registros);
@@ -1497,7 +1499,14 @@ export default function App() {
                             const categoria = buscarCampo(item, 'Categoria');
                             const filialItem = buscarCampo(item, 'Filial');
                             const documento = buscarCampo(item, 'Documento');
+                            const contaCorrente = buscarCampo(item, 'Conta Corrente') || '';
                             const catPermitidas = ['Energia Eletrica e Gas', 'ICMS', 'Impostos e Taxas Diversas', 'ISS', 'Pagamento de Empréstimos', 'Seguros'];
+                            
+                            // Excluir Transferência Bancária
+                            if (formaPagamento && formaPagamento.toLowerCase().includes('transfer')) return false;
+                            
+                            // Excluir contas com Visa ou Master (são cartão de crédito)
+                            if (contaCorrente.toLowerCase().includes('visa') || contaCorrente.toLowerCase().includes('master')) return false;
                             
                             // Verifica se é Débito Automático
                             const isDebitoAutomatico = documento && documento.toLowerCase().includes('débito automático');
