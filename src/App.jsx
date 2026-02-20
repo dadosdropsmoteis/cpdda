@@ -765,6 +765,17 @@ export default function App() {
           left: 0;
           z-index: 4 !important;
         }
+        .sticky-col-2 {
+          position: sticky;
+          left: 128px;
+          z-index: 2;
+          background: inherit;
+        }
+        .sticky-col-2-header {
+          position: sticky;
+          left: 128px;
+          z-index: 4 !important;
+        }
       `}</style>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
         <div className="max-w-full mx-auto">
@@ -1221,8 +1232,10 @@ export default function App() {
                   )}
                 </div>
 
+                {/* Grid para Tabelas 2 e 3 lado a lado */}
+                <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Tabela 2: Despesas com Pessoal */}
-                <div className={`mt-8 ${tabela2Expandida ? '' : 'no-print'}`}>
+                <div className={tabela2Expandida ? '' : 'no-print'}>
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-semibold text-gray-800">
                       <span className="text-green-600 mr-2">&gt;</span>
@@ -1313,7 +1326,7 @@ export default function App() {
                 </div>
 
                 {/* Tabela 3: Despesas Financeiras/Impostos */}
-                <div className={`mt-8 ${tabela3Expandida ? '' : 'no-print'}`}>
+                <div className={tabela3Expandida ? '' : 'no-print'}>
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-semibold text-gray-800">
                       <span className="text-orange-600 mr-2">&gt;</span>
@@ -1402,6 +1415,8 @@ export default function App() {
                   </div>
                   )}
                 </div>
+                </div>
+                {/* Fim do Grid Tabelas 2 e 3 */}
 
                 {/* Tabela 4: Despesas com Cartão de Crédito - Formato Pivô */}
                 <div className={`mt-8 ${tabela4Expandida ? '' : 'no-print'}`}>
@@ -1634,7 +1649,7 @@ export default function App() {
                       <thead>
                         <tr className="sticky-header">
                           <th rowSpan={2} className="sticky-col-header border border-gray-300 bg-gray-700 text-white px-4 py-3 text-left font-semibold min-w-32">Data</th>
-                          <th rowSpan={2} className="border border-gray-300 bg-gray-700 text-white px-4 py-3 text-left font-semibold min-w-40">Tipo de Lançamento</th>
+                          <th rowSpan={2} className="sticky-col-2-header border border-gray-300 bg-gray-700 text-white px-4 py-3 text-left font-semibold min-w-40">Tipo de Lançamento</th>
                           {filiaisVisiveis.map(filial => (
                             <th key={filial} colSpan={2} className="border border-gray-300 bg-gray-600 text-white px-4 py-2 text-center font-semibold whitespace-nowrap">{filial}</th>
                           ))}
@@ -1677,7 +1692,7 @@ export default function App() {
                             return (
                               <tr key={`${data}-${tipoIdx}`} className={`${tipo.cor} hover:bg-gray-100`}>
                                 {tipoIdx === 0 && <td rowSpan={5} className="sticky-col border border-gray-200 px-4 py-3 font-semibold text-gray-800 bg-gray-50">{data}</td>}
-                                <td className="border border-gray-200 px-4 py-2 text-gray-700">{tipo.nome}</td>
+                                <td className="sticky-col-2 border border-gray-200 px-4 py-2 text-gray-700">{tipo.nome}</td>
                                 {filiaisVisiveis.map(filial => (
                                   <React.Fragment key={filial}>
                                     <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
@@ -1720,7 +1735,7 @@ export default function App() {
 
                           const linhaTotalData = (
                             <tr key={`${data}-total`} className="bg-gray-200 font-semibold">
-                              <td className="border border-gray-200 px-4 py-2 text-right text-gray-800">Total {data}:</td>
+                              <td className="sticky-col-2 border border-gray-200 px-4 py-2 text-right text-gray-800">Total {data}:</td>
                               {filiaisVisiveis.map(filial => (
                                 <React.Fragment key={filial}>
                                   <td className="border border-gray-200 px-3 py-2 text-center text-gray-800">
