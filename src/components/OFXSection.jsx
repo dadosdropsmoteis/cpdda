@@ -545,7 +545,6 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                             )}
                           </td>
                         </tr>
-                        {/* Projeção Diária Expandida */}
                         {detalheAberto === i && r.projecaoDiaria && (
                           <tr>
                             <td colSpan={8} className="border border-gray-200 p-0">
