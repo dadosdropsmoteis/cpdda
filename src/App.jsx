@@ -151,7 +151,8 @@ export default function App() {
               'Documento': limpar(colunas[75]),  // Tipo do Documento
               'Departamento': limpar(colunas[8]),
               'CNPJ/CPF': limpar(colunas[58]),  // CNPJ/CPF coluna 59
-              'Razão Social': limpar(colunas[60])  // Razão Social coluna 61
+              'Razão Social': limpar(colunas[60]),  // Razão Social coluna 61
+              'Tipo da Conta Corrente': limpar(colunas[55])  // Tipo da Conta Corrente coluna 56
             };
           }).filter(item => item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -229,7 +230,8 @@ export default function App() {
               'Documento': limpar(colunas[75]),  // Tipo do Documento
               'Departamento': limpar(colunas[8]),
               'CNPJ/CPF': limpar(colunas[58]),  // CNPJ/CPF coluna 59
-              'Razão Social': limpar(colunas[60])  // Razão Social coluna 61
+              'Razão Social': limpar(colunas[60]),  // Razão Social coluna 61
+              'Tipo da Conta Corrente': limpar(colunas[55])  // Tipo da Conta Corrente coluna 56
             };
           }).filter(item => item && item.Filial && item.Vencimento && item.Valor && item.Valor !== '0,00');
 
@@ -649,12 +651,15 @@ export default function App() {
     return { filial, remessa, pessoal, financeiras, cartao, totalValor, totalQuantidade };
   });
 
-  // Preparar dados por Filial agrupando Contas Bancárias
+  // Preparar dados por Filial agrupando Contas Bancárias (apenas Conta Corrente)
   const contasUnicas = new Set();
   dados.forEach(item => {
     const filialItem = buscarCampo(item, 'Filial');
     const dataVencimento = buscarCampo(item, 'Vencimento');
-    if (filiaisVisiveis.includes(filialItem) && datasVisiveis.includes(dataVencimento)) {
+    const tipoConta = buscarCampo(item, 'Tipo da Conta Corrente');
+    
+    // Filtrar apenas Tipo da Conta Corrente = "Conta Corrente"
+    if (filiaisVisiveis.includes(filialItem) && datasVisiveis.includes(dataVencimento) && tipoConta === 'Conta Corrente') {
       const conta = buscarCampo(item, 'Conta Corrente') || 'Sem Conta';
       contasUnicas.add(conta);
     }
@@ -669,9 +674,13 @@ export default function App() {
       const filialItem = buscarCampo(item, 'Filial');
       const dataVencimento = buscarCampo(item, 'Vencimento');
       const contaCorrente = buscarCampo(item, 'Conta Corrente') || 'Sem Conta';
+      const tipoConta = buscarCampo(item, 'Tipo da Conta Corrente');
       
       if (filialItem !== filial) return;
       if (!datasVisiveis.includes(dataVencimento)) return;
+      
+      // Filtrar apenas Tipo da Conta Corrente = "Conta Corrente"
+      if (tipoConta !== 'Conta Corrente') return;
       
       if (!contasPorFilial[contaCorrente]) {
         contasPorFilial[contaCorrente] = 0;
@@ -1217,7 +1226,7 @@ export default function App() {
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis 
-                        dataKey={tipoGrafico === 'data' ? 'data' : (tipoGrafico === 'filial' ? 'filial' : 'conta')} 
+                        dataKey={tipoGrafico === 'data' ? 'data' : 'filial'} 
                         angle={-45} 
                         textAnchor="end" 
                         height={80} 
