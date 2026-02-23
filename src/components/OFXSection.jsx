@@ -502,7 +502,8 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                     </thead>
                     <tbody>
                       {resultadosOrdenados.map((r, i) => (
-                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <React.Fragment key={i}>
+                        <tr className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                           <td className="border border-gray-200 px-3 py-2 font-semibold">
                             <div className="flex items-center gap-2">
                               <span
@@ -586,6 +587,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                             </td>
                           </tr>
                         )}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>
