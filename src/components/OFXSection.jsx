@@ -24,6 +24,8 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   const [loading, setLoading] = useState(false);
   const [expandida, setExpandida] = useState(true);
   const [ordenacao, setOrdenacao] = useState({ campo: 'saldoFinal', direcao: 'asc' });
+  const [detalheAberto, setDetalheAberto] = useState(null);
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(true);
   const [detalheAberto, setDetalheAberto] = useState(null); // índice da conta com projeção aberta
   const [mostrarSugestoes, setMostrarSugestoes] = useState(true);
 
@@ -164,80 +166,53 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   const sugerirTransferencias = (contas) => {
     const contasNegativas = contas.filter(c => c.ficaNegativo);
     const contasPositivas = contas.filter(c => !c.ficaNegativo && c.saldoFinal > 0);
-    
     if (contasNegativas.length === 0) return [];
-
     const sugestoes = [];
-
     contasNegativas.forEach(contaNegativa => {
       const raizNegativa = getRaizCNPJ(contaNegativa.summary.cnpj);
       const deficit = Math.abs(contaNegativa.saldoFinal);
       let valorRestante = deficit;
-
-      // 1. Priorizar contas da mesma unidade
       const contasMesmaUnidade = contasPositivas.filter(
         c => c.summary.cnpj === contaNegativa.summary.cnpj && c !== contaNegativa
       );
-
       contasMesmaUnidade.forEach(origem => {
         if (valorRestante <= 0) return;
         const valorTransferencia = Math.min(valorRestante, origem.saldoFinal);
         if (valorTransferencia > 0) {
           sugestoes.push({
-            de: origem.summary.fantasia,
-            deBanco: origem.summary.banco,
-            para: contaNegativa.summary.fantasia,
-            paraBanco: contaNegativa.summary.banco,
-            valor: valorTransferencia,
-            tipo: 'Mesma Unidade',
-            prioridade: 1,
-            cor: 'emerald'
+            de: origem.summary.fantasia, deBanco: origem.summary.banco,
+            para: contaNegativa.summary.fantasia, paraBanco: contaNegativa.summary.banco,
+            valor: valorTransferencia, tipo: 'Mesma Unidade', prioridade: 1, cor: 'emerald'
           });
           valorRestante -= valorTransferencia;
         }
       });
-
-      // 2. Buscar em outras unidades com mesma raiz
       if (valorRestante > 0 && raizNegativa) {
         const contasMesmaRaiz = contasPositivas.filter(c => {
           const raizOrigem = getRaizCNPJ(c.summary.cnpj);
           return raizOrigem === raizNegativa && c.summary.cnpj !== contaNegativa.summary.cnpj;
         });
-
         contasMesmaRaiz.forEach(origem => {
           if (valorRestante <= 0) return;
           const valorTransferencia = Math.min(valorRestante, origem.saldoFinal * 0.8);
           if (valorTransferencia >= 100) {
             sugestoes.push({
-              de: origem.summary.fantasia,
-              deBanco: origem.summary.banco,
-              para: contaNegativa.summary.fantasia,
-              paraBanco: contaNegativa.summary.banco,
-              valor: valorTransferencia,
-              tipo: 'Entre Unidades (mesma raiz CNPJ)',
-              prioridade: 2,
-              cor: 'amber'
+              de: origem.summary.fantasia, deBanco: origem.summary.banco,
+              para: contaNegativa.summary.fantasia, paraBanco: contaNegativa.summary.banco,
+              valor: valorTransferencia, tipo: 'Entre Unidades (mesma raiz CNPJ)', prioridade: 2, cor: 'amber'
             });
             valorRestante -= valorTransferencia;
           }
         });
       }
-
-      // 3. Aporte externo necessário
       if (valorRestante > 100) {
         sugestoes.push({
-          de: 'APORTE EXTERNO',
-          deBanco: '',
-          para: contaNegativa.summary.fantasia,
-          paraBanco: contaNegativa.summary.banco,
-          valor: valorRestante,
-          tipo: 'Aporte Necessário',
-          prioridade: 3,
-          cor: 'red'
+          de: 'APORTE EXTERNO', deBanco: '',
+          para: contaNegativa.summary.fantasia, paraBanco: contaNegativa.summary.banco,
+          valor: valorRestante, tipo: 'Aporte Necessário', prioridade: 3, cor: 'red'
         });
       }
     });
-
     return sugestoes.sort((a, b) => a.prioridade - b.prioridade);
   };
 
@@ -395,8 +370,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                       ))}
                     </div>
                   </div>
-                )}
-
+)}
 
                 {/* Sugestões de Transferências */}
                 {sugestoesTransferencia.length > 0 && mostrarSugestoes && (
@@ -408,33 +382,23 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                         </svg>
                         💡 Sugestões de Transferências
                       </div>
-                      <button
-                        onClick={() => setMostrarSugestoes(false)}
-                        className="text-xs text-blue-600 hover:text-blue-800"
-                      >
+                      <button onClick={() => setMostrarSugestoes(false)} className="text-xs text-blue-600 hover:text-blue-800">
                         Ocultar
                       </button>
                     </div>
                     <div className="space-y-2">
                       {sugestoesTransferencia.map((s, i) => (
-                        <div 
-                          key={i} 
-                          className={`p-3 rounded-lg ${
-                            s.prioridade === 1 ? 'bg-emerald-50 border border-emerald-200' :
-                            s.prioridade === 2 ? 'bg-amber-50 border border-amber-200' :
-                            'bg-red-50 border border-red-200'
-                          }`}
-                        >
+                        <div key={i} className={`p-3 rounded-lg ${
+                          s.prioridade === 1 ? 'bg-emerald-50 border border-emerald-200' :
+                          s.prioridade === 2 ? 'bg-amber-50 border border-amber-200' :
+                          'bg-red-50 border border-red-200'}`}>
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 text-sm flex-wrap">
                                 <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                                   s.prioridade === 1 ? 'bg-emerald-200 text-emerald-800' :
                                   s.prioridade === 2 ? 'bg-amber-200 text-amber-800' :
-                                  'bg-red-200 text-red-800'
-                                }`}>
-                                  {s.tipo}
-                                </span>
+                                  'bg-red-200 text-red-800'}`}>{s.tipo}</span>
                                 {s.prioridade !== 3 && (
                                   <>
                                     <span className="font-semibold">{s.de}</span>
@@ -449,9 +413,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                               </div>
                             </div>
                             <div className="text-right ml-4">
-                              <div className="text-lg font-bold text-blue-700">
-                                R$ {fmt(s.valor)}
-                              </div>
+                              <div className="text-lg font-bold text-blue-700">R$ {fmt(s.valor)}</div>
                             </div>
                           </div>
                         </div>
@@ -539,8 +501,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                             {r.projecaoDiaria && r.projecaoDiaria.length > 0 && (
                               <button
                                 onClick={() => setDetalheAberto(detalheAberto === i ? null : i)}
-                                className="px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs rounded font-medium"
-                              >
+                                className="px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs rounded font-medium">
                                 {detalheAberto === i ? 'Ocultar' : 'Ver'}
                               </button>
                             )}
@@ -571,8 +532,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                                             {dia.despesas > 0 ? `R$ ${fmt(dia.despesas)}` : '—'}
                                           </td>
                                           <td className={`border border-gray-200 px-2 py-1 text-right font-bold ${
-                                            dia.saldoAposLancamentos < 0 ? 'text-red-600' : 'text-emerald-600'
-                                          }`}>
+                                            dia.saldoAposLancamentos < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                                             R$ {fmt(dia.saldoAposLancamentos)}
                                           </td>
                                           <td className="border border-gray-200 px-2 py-1 text-center text-lg">
@@ -672,80 +632,53 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   const sugerirTransferencias = (contas) => {
     const contasNegativas = contas.filter(c => c.ficaNegativo);
     const contasPositivas = contas.filter(c => !c.ficaNegativo && c.saldoFinal > 0);
-    
     if (contasNegativas.length === 0) return [];
-
     const sugestoes = [];
-
     contasNegativas.forEach(contaNegativa => {
       const raizNegativa = getRaizCNPJ(contaNegativa.summary.cnpj);
       const deficit = Math.abs(contaNegativa.saldoFinal);
       let valorRestante = deficit;
-
-      // 1. Priorizar contas da mesma unidade
       const contasMesmaUnidade = contasPositivas.filter(
         c => c.summary.cnpj === contaNegativa.summary.cnpj && c !== contaNegativa
       );
-
       contasMesmaUnidade.forEach(origem => {
         if (valorRestante <= 0) return;
         const valorTransferencia = Math.min(valorRestante, origem.saldoFinal);
         if (valorTransferencia > 0) {
           sugestoes.push({
-            de: origem.summary.fantasia,
-            deBanco: origem.summary.banco,
-            para: contaNegativa.summary.fantasia,
-            paraBanco: contaNegativa.summary.banco,
-            valor: valorTransferencia,
-            tipo: 'Mesma Unidade',
-            prioridade: 1,
-            cor: 'emerald'
+            de: origem.summary.fantasia, deBanco: origem.summary.banco,
+            para: contaNegativa.summary.fantasia, paraBanco: contaNegativa.summary.banco,
+            valor: valorTransferencia, tipo: 'Mesma Unidade', prioridade: 1, cor: 'emerald'
           });
           valorRestante -= valorTransferencia;
         }
       });
-
-      // 2. Buscar em outras unidades com mesma raiz
       if (valorRestante > 0 && raizNegativa) {
         const contasMesmaRaiz = contasPositivas.filter(c => {
           const raizOrigem = getRaizCNPJ(c.summary.cnpj);
           return raizOrigem === raizNegativa && c.summary.cnpj !== contaNegativa.summary.cnpj;
         });
-
         contasMesmaRaiz.forEach(origem => {
           if (valorRestante <= 0) return;
           const valorTransferencia = Math.min(valorRestante, origem.saldoFinal * 0.8);
           if (valorTransferencia >= 100) {
             sugestoes.push({
-              de: origem.summary.fantasia,
-              deBanco: origem.summary.banco,
-              para: contaNegativa.summary.fantasia,
-              paraBanco: contaNegativa.summary.banco,
-              valor: valorTransferencia,
-              tipo: 'Entre Unidades (mesma raiz CNPJ)',
-              prioridade: 2,
-              cor: 'amber'
+              de: origem.summary.fantasia, deBanco: origem.summary.banco,
+              para: contaNegativa.summary.fantasia, paraBanco: contaNegativa.summary.banco,
+              valor: valorTransferencia, tipo: 'Entre Unidades (mesma raiz CNPJ)', prioridade: 2, cor: 'amber'
             });
             valorRestante -= valorTransferencia;
           }
         });
       }
-
-      // 3. Aporte externo necessário
       if (valorRestante > 100) {
         sugestoes.push({
-          de: 'APORTE EXTERNO',
-          deBanco: '',
-          para: contaNegativa.summary.fantasia,
-          paraBanco: contaNegativa.summary.banco,
-          valor: valorRestante,
-          tipo: 'Aporte Necessário',
-          prioridade: 3,
-          cor: 'red'
+          de: 'APORTE EXTERNO', deBanco: '',
+          para: contaNegativa.summary.fantasia, paraBanco: contaNegativa.summary.banco,
+          valor: valorRestante, tipo: 'Aporte Necessário', prioridade: 3, cor: 'red'
         });
       }
     });
-
     return sugestoes.sort((a, b) => a.prioridade - b.prioridade);
   };
 
