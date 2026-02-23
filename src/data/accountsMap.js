@@ -759,6 +759,29 @@ const accountsMap = {
     "bankid": "0033",
     "acctid": "1166130018090",
     "contaOriginal": "1166 13001809-0"
+  },
+  // Adicionado: Vale dos Sinos com números de conta do OFX
+  "0748_434000000045625120": {
+    "nrDoc": 5,
+    "descricao": "DROPS VALE DOS SINOS SPE LTDA",
+    "fantasia": "VALE DOS SINOS",
+    "cidade": "Araricá",
+    "cnpj": "41622398000185",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "434000000045625120",
+    "contaOriginal": "43400 00000456251-20"
+  },
+  "0033_095313002198": {
+    "nrDoc": 5,
+    "descricao": "DROPS VALE DOS SINOS SPE LTDA",
+    "fantasia": "VALE DOS SINOS",
+    "cidade": "Araricá",
+    "cnpj": "41622398000185",
+    "banco": "Santander",
+    "bankid": "0033",
+    "acctid": "095313002198",
+    "contaOriginal": "0953 13002198-?"
   }
 };
 
