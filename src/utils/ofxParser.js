@@ -119,7 +119,21 @@ export function parseOFX(content, accountsMap = {}) {
 
   // Cruzamento com tabela de contas
   const lookupKey = bankId && acctId ? `${bankId}_${acctId}` : null;
+  
+  // DEBUG: Log para verificar o que está sendo buscado
+  console.log('🔍 OFX Parser Debug:');
+  console.log('  BANKID extraído:', bankId);
+  console.log('  ACCTID extraído:', acctId);
+  console.log('  Lookup Key gerada:', lookupKey);
+  console.log('  Chaves disponíveis no map:', Object.keys(accountsMap).filter(k => k.includes(bankId || '')));
+  
   const accountInfo = lookupKey ? accountsMap[lookupKey] || null : null;
+  
+  console.log('  Match encontrado:', accountInfo ? 'SIM ✅' : 'NÃO ❌');
+  if (accountInfo) {
+    console.log('  Fantasia:', accountInfo.fantasia);
+  }
+  
   const bankName = bankId ? (BANK_NAMES[bankId] || `Banco ${bankId}`) : null;
 
   return {
