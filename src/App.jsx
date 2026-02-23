@@ -1183,6 +1183,9 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Seção Extratos OFX */}
+                <OFXSection dados={dados} datasVisiveis={datasVisiveis} />
+
                 {/* Gráfico Geral - Empilhado por Categoria */}
                 <div className="mb-8 grafico-print">
                   <div className="flex items-center justify-between mb-4">
@@ -2187,9 +2190,6 @@ export default function App() {
                 <p className="text-sm mt-1">Colunas: Nome Fantasia, Data de Previsão, Valor da Conta, Categoria, Forma de Pagamento, Conta Corrente</p>
               </div>
             )}
-
-            {/* Seção Extratos OFX - movida para o final */}
-            {dados.length > 0 && <OFXSection dados={dados} datasVisiveis={datasVisiveis} />}
 
           </div>
         </div>
