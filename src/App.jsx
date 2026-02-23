@@ -734,7 +734,7 @@ export default function App() {
     if (nomeNormalizado.includes('santander')) return '#EC0000'; // Vermelho Santander
     if (nomeNormalizado.includes('bradesco')) return '#CC092F'; // Vermelho Bradesco
     if (nomeNormalizado.includes('itau') || nomeNormalizado.includes('itaú')) return '#FF6600'; // Laranja Itaú
-    if (nomeNormalizado.includes('banco do brasil') || nomeNormalizado.includes('bb')) return '#FFF100'; // Amarelo BB
+    if (nomeNormalizado.includes('banco do brasil') || nomeNormalizado.includes('bb')) return '#FFCC00'; // Amarelo mais escuro BB
     if (nomeNormalizado.includes('caixa')) return '#0066B3'; // Azul Caixa
     if (nomeNormalizado.includes('sicredi')) return '#00A859'; // Verde Sicredi
     if (nomeNormalizado.includes('inter')) return '#FF7A00'; // Laranja Inter
