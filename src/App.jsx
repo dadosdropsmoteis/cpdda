@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ComposedChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line } from 'recharts';
 import * as XLSX from 'xlsx';
+import OFXSection from './components/OFXSection';
 
 export default function App() {
   const [dados, setDados] = useState([]);
@@ -1181,6 +1182,9 @@ export default function App() {
                     <p className="text-3xl font-bold mt-2">{obterFiliais().length}</p>
                   </div>
                 </div>
+
+                {/* Seção Extratos OFX */}
+                <OFXSection />
 
                 {/* Gráfico Geral - Empilhado por Categoria */}
                 <div className="mb-8 grafico-print">
