@@ -33,11 +33,19 @@ export default function OFXSection() {
 
     setLoading(true);
     try {
+      console.log('📁 Arquivos OFX carregados:', files.map(f => f.name));
+      console.log('🗺️ AccountsMap tem', Object.keys(accountsMap).length, 'entradas');
+      console.log('🔑 Chaves do map:', Object.keys(accountsMap).slice(0, 5), '...');
+      
       const fileContents = await Promise.all(files.map(readOFXFile));
       const data = parseMultipleOFX(fileContents, accountsMap);
+      
+      console.log('✅ Parsing completo. Resultados:', data);
+      
       setResults(data);
       setDetalheAberto(null);
     } catch (err) {
+      console.error('❌ Erro no parsing:', err);
       alert(`Erro ao processar OFX: ${err.message}`);
     } finally {
       setLoading(false);
