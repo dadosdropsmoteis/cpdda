@@ -10,7 +10,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [tabelaTransposta, setTabelaTransposta] = useState(true); // Começa invertida
   const [tipoArquivo, setTipoArquivo] = useState('csv'); // 'excel' ou 'csv'
-  const [tipoGrafico, setTipoGrafico] = useState('data'); // 'data' ou 'filial'
+  const [tipoGrafico, setTipoGrafico] = useState('data'); // 'data', 'filial' ou 'conta'
   const [tabela2Transposta, setTabela2Transposta] = useState(false);
   const [tabela3Transposta, setTabela3Transposta] = useState(false);
   const [tabela4Transposta, setTabela4Transposta] = useState(false);
@@ -649,6 +649,51 @@ export default function App() {
     return { filial, remessa, pessoal, financeiras, cartao, totalValor, totalQuantidade };
   });
 
+  // Preparar dados por Filial agrupando Contas Bancárias
+  const contasUnicas = new Set();
+  dados.forEach(item => {
+    const filialItem = buscarCampo(item, 'Filial');
+    const dataVencimento = buscarCampo(item, 'Vencimento');
+    if (filiaisVisiveis.includes(filialItem) && datasVisiveis.includes(dataVencimento)) {
+      const conta = buscarCampo(item, 'Conta Corrente') || 'Sem Conta';
+      contasUnicas.add(conta);
+    }
+  });
+  const listaContas = Array.from(contasUnicas).sort();
+
+  const dadosParaGraficoPorConta = filiaisVisiveis.map(filial => {
+    const contasPorFilial = {};
+    let totalQuantidade = 0;
+    
+    dados.forEach(item => {
+      const filialItem = buscarCampo(item, 'Filial');
+      const dataVencimento = buscarCampo(item, 'Vencimento');
+      const contaCorrente = buscarCampo(item, 'Conta Corrente') || 'Sem Conta';
+      
+      if (filialItem !== filial) return;
+      if (!datasVisiveis.includes(dataVencimento)) return;
+      
+      if (!contasPorFilial[contaCorrente]) {
+        contasPorFilial[contaCorrente] = 0;
+      }
+      
+      const valorRaw = buscarCampo(item, 'Valor');
+      const valor = parsearValor(valorRaw);
+      
+      contasPorFilial[contaCorrente] += valor;
+      totalQuantidade += 1;
+    });
+    
+    const resultado = { filial, totalQuantidade };
+    
+    // Adicionar cada conta como uma propriedade
+    Object.keys(contasPorFilial).forEach(conta => {
+      resultado[conta] = contasPorFilial[conta];
+    });
+    
+    return resultado;
+  });
+
   const totais = dadosFiltrados.reduce((acc, item) => {
     if (datasVisiveis.includes(item.data)) {
       acc.quantidade += item.quantidade;
@@ -671,6 +716,45 @@ export default function App() {
   };
 
   const fmt = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Função para gerar cor específica por nome de conta
+  const getCorPorConta = (nomeConta) => {
+    const nomeNormalizado = nomeConta.toLowerCase();
+    
+    // Cores específicas para bancos conhecidos
+    if (nomeNormalizado.includes('santander')) return '#EC0000'; // Vermelho Santander
+    if (nomeNormalizado.includes('bradesco')) return '#CC092F'; // Vermelho Bradesco
+    if (nomeNormalizado.includes('itau') || nomeNormalizado.includes('itaú')) return '#FF6600'; // Laranja Itaú
+    if (nomeNormalizado.includes('banco do brasil') || nomeNormalizado.includes('bb')) return '#FFF100'; // Amarelo BB
+    if (nomeNormalizado.includes('caixa')) return '#0066B3'; // Azul Caixa
+    if (nomeNormalizado.includes('sicredi')) return '#00A859'; // Verde Sicredi
+    if (nomeNormalizado.includes('inter')) return '#FF7A00'; // Laranja Inter
+    if (nomeNormalizado.includes('nubank')) return '#820AD1'; // Roxo Nubank
+    if (nomeNormalizado.includes('c6')) return '#000000'; // Preto C6
+    if (nomeNormalizado.includes('safra')) return '#0033A0'; // Azul Safra
+    if (nomeNormalizado.includes('original')) return '#3AAB3F'; // Verde Original
+    if (nomeNormalizado.includes('btg')) return '#000000'; // Preto BTG
+    
+    // Cores para tipos de cartão
+    if (nomeNormalizado.includes('visa')) return '#1A1F71'; // Azul Visa
+    if (nomeNormalizado.includes('master')) return '#EB001B'; // Vermelho Mastercard
+    if (nomeNormalizado.includes('american') || nomeNormalizado.includes('amex')) return '#006FCF'; // Azul Amex
+    if (nomeNormalizado.includes('elo')) return '#FFCB05'; // Amarelo Elo
+    
+    // Cores para tipos especiais
+    if (nomeNormalizado.includes('pix')) return '#32BCAD'; // Verde água PIX
+    if (nomeNormalizado.includes('dinheiro') || nomeNormalizado.includes('espécie')) return '#2E7D32'; // Verde escuro
+    if (nomeNormalizado.includes('cheque')) return '#5E35B1'; // Roxo
+    if (nomeNormalizado.includes('sem conta') || nomeNormalizado === 'n/d') return '#757575'; // Cinza
+    
+    // Gerar cor baseada em hash do nome para contas não mapeadas
+    let hash = 0;
+    for (let i = 0; i < nomeConta.length; i++) {
+      hash = nomeConta.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const cores = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1'];
+    return cores[Math.abs(hash) % cores.length];
+  };
 
   // Função para buscar registros por CNPJ ou Razão Social
   const buscarPorCNPJ = () => {
@@ -1112,18 +1196,28 @@ export default function App() {
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
-                        Por Filial
+                        Por Filial/Tipo
+                      </button>
+                      <button
+                        onClick={() => setTipoGrafico('conta')}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          tipoGrafico === 'conta'
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        Por Filial/Conta Bancária
                       </button>
                     </div>
                   </div>
                   <ResponsiveContainer width="100%" height={320}>
                     <ComposedChart 
-                      data={tipoGrafico === 'data' ? dadosParaGrafico : dadosParaGraficoPorFilial} 
+                      data={tipoGrafico === 'data' ? dadosParaGrafico : (tipoGrafico === 'filial' ? dadosParaGraficoPorFilial : dadosParaGraficoPorConta)} 
                       margin={{ top: 10, right: 40, left: 10, bottom: 60 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis 
-                        dataKey={tipoGrafico === 'data' ? 'data' : 'filial'} 
+                        dataKey={tipoGrafico === 'data' ? 'data' : (tipoGrafico === 'filial' ? 'filial' : 'conta')} 
                         angle={-45} 
                         textAnchor="end" 
                         height={80} 
@@ -1148,10 +1242,28 @@ export default function App() {
                         labelStyle={{ fontWeight: 'bold' }}
                       />
                       <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 10 }} />
-                      <Bar yAxisId="left" dataKey="remessa" stackId="a" fill="#3b82f6" name="Remessa Bancária" />
-                      <Bar yAxisId="left" dataKey="pessoal" stackId="a" fill="#10b981" name="Despesas Pessoal" />
-                      <Bar yAxisId="left" dataKey="financeiras" stackId="a" fill="#f59e0b" name="Financ./Impostos" />
-                      <Bar yAxisId="left" dataKey="cartao" stackId="a" fill="#8b5cf6" name="Cartão Crédito" />
+                      {tipoGrafico === 'conta' ? (
+                        // Renderizar uma barra para cada conta bancária com cor específica
+                        listaContas.map((conta) => {
+                          return (
+                            <Bar 
+                              key={conta} 
+                              yAxisId="left" 
+                              dataKey={conta} 
+                              stackId="a" 
+                              fill={getCorPorConta(conta)} 
+                              name={conta} 
+                            />
+                          );
+                        })
+                      ) : (
+                        <>
+                          <Bar yAxisId="left" dataKey="remessa" stackId="a" fill="#3b82f6" name="Remessa Bancária" />
+                          <Bar yAxisId="left" dataKey="pessoal" stackId="a" fill="#10b981" name="Despesas Pessoal" />
+                          <Bar yAxisId="left" dataKey="financeiras" stackId="a" fill="#f59e0b" name="Financ./Impostos" />
+                          <Bar yAxisId="left" dataKey="cartao" stackId="a" fill="#8b5cf6" name="Cartão Crédito" />
+                        </>
+                      )}
                       <Line yAxisId="right" type="monotone" dataKey="totalQuantidade" stroke="#ef4444" strokeWidth={3} name="Quantidade Total" dot={{ r: 5 }} activeDot={{ r: 7 }} />
                     </ComposedChart>
                   </ResponsiveContainer>
