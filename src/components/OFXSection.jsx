@@ -385,6 +385,24 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         }
       });
       
+      // Função para buscar CNPJ da filial
+      const buscarCNPJFilial = (nomeFilial) => {
+        // Tentar do mapa de contas OFX
+        if (cnpjPorFilial[nomeFilial.toLowerCase()]) {
+          return cnpjPorFilial[nomeFilial.toLowerCase()];
+        }
+        
+        // Buscar do accountsMap - procurar qualquer conta com essa fantasia
+        const filialNormalizada = nomeFilial.toLowerCase();
+        for (const [key, info] of Object.entries(accountsMap)) {
+          if (info.fantasia && info.fantasia.toLowerCase() === filialNormalizada) {
+            return info.cnpj;
+          }
+        }
+        
+        return null;
+      };
+      
       // Identificar contas com despesas no Excel
       const contasComDespesas = new Map(); // key: filial_banco
       dados.forEach(item => {
@@ -394,16 +412,16 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         const tipoContaCorrente = buscarCampo(item, 'Tipo da Conta Corrente');
         const dataVencimentoRaw = buscarCampo(item, 'Data de Vencimento', 'Vencimento');
         const dataVencimento = normalizarData(dataVencimentoRaw);
-        const cnpjExcel = buscarCampo(item, 'Minha Empresa (CNPJ)');
         
         // FILTRO CRÍTICO: Apenas Conta Corrente
         if (filial && contaCorrente && tipoContaCorrente === 'Conta Corrente' && dataVencimento && datasVisiveis.includes(dataVencimento)) {
           const key = `${filial.toLowerCase()}_${contaCorrente.toLowerCase()}`;
           if (!contasComDespesas.has(key)) {
+            const cnpjReal = buscarCNPJFilial(filial);
             contasComDespesas.set(key, {
               filial,
               contaCorrente,
-              cnpj: cnpjExcel || cnpjPorFilial[filial.toLowerCase()] || null
+              cnpj: cnpjReal
             });
           }
         }
