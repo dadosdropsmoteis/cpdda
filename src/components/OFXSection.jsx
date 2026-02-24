@@ -32,7 +32,41 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       'drops rio preto': 'rio preto',
       'rio preto': 'rio preto',
       'vale dos sinos': 'vale dos sinos',
-      'araraquara': 'araraquara'
+      'araraquara': 'araraquara',
+      'drops campinas': 'campinas',
+      'campinas': 'campinas',
+      'drops ribeirao preto': 'ribeirao preto',
+      'ribeirao preto': 'ribeirao preto',
+      'dps goiânia': 'goiania',
+      'dps goiania': 'goiania',
+      'goiânia': 'goiania',
+      'goiania': 'goiania',
+      'grand dubai': 'caxias do sul',
+      'caxias do sul': 'caxias do sul',
+      'drops brasília': 'brasilia',
+      'drops brasilia': 'brasilia',
+      'brasília': 'brasilia',
+      'brasilia': 'brasilia',
+      'xangai (sleo express)': 'xangai',
+      'xangai': 'xangai',
+      'champagne': 'tubarao',
+      'tubarao': 'tubarao',
+      'tubarão': 'tubarao',
+      'drops palhoça': 'palhoca',
+      'drops palhoca': 'palhoca',
+      'palhoça': 'palhoca',
+      'palhoca': 'palhoca',
+      'dps porto alegre': 'porto alegre',
+      'porto alegre': 'porto alegre',
+      'baviera': 'novo hamburgo',
+      'novo hamburgo': 'novo hamburgo',
+      'rv bangalo': 'rv bangalo',
+      'bangalo': 'bangalo',
+      'bangalô': 'bangalo',
+      'poa taiko': 'poa zona norte',
+      'poa zona norte': 'poa zona norte',
+      'camelot (sleo)': 'camelot',
+      'camelot': 'camelot'
     };
     
     const nomeMinusculo = nomeNormalizado.toLowerCase();
@@ -363,7 +397,8 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   const fmt = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Gerar sugestões mantendo as confirmadas fixas
-  const sugestoesTransferencia = useMemo(() => {
+  // Calcular sugestões (sem useMemo para garantir atualização)
+  const sugestoesTransferencia = (() => {
     if (!results) return [];
     
     // Recalcular não confirmadas com base nas confirmadas
@@ -400,7 +435,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     return Array.from(mapa.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([_, sug]) => sug);
-  }, [results, transferenciasConfirmadas]);
+  })();
   
   const resultadosComAjustes = results ? calcularSaldosComTransferencias(results.results, sugestoesTransferencia) : [];
   
