@@ -372,69 +372,6 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       const fileContents = await Promise.all(files.map(readOFXFile));
       const data = parseMultipleOFX(fileContents, accountsMap);
       
-      // Identificar contas únicas com despesas (Filial + Conta Corrente)
-      const contasComDespesas = new Set();
-      dados.forEach(item => {
-        const filialRaw = buscarCampo(item, 'Minha Empresa (Nome Fantasia)', 'Filial');
-        const filial = mapearNomeFilial(filialRaw);
-        const contaCorrente = buscarCampo(item, 'Conta Corrente');
-        const dataVencimentoRaw = buscarCampo(item, 'Data de Vencimento', 'Vencimento');
-        const dataVencimento = normalizarData(dataVencimentoRaw);
-        
-        if (filial && contaCorrente && dataVencimento && datasVisiveis.includes(dataVencimento)) {
-          const key = `${filial.toLowerCase()}_${contaCorrente.toLowerCase()}`;
-          contasComDespesas.add(key);
-        }
-      });
-      
-      // Identificar contas que têm OFX
-      const contasComOFX = new Set();
-      data.results.forEach(conta => {
-        const filial = conta.summary.fantasia;
-        const banco = conta.summary.banco;
-        const key = `${filial.toLowerCase()}_${banco.toLowerCase()}`;
-        contasComOFX.add(key);
-        
-        // Adicionar variações para Santander
-        if (banco.toLowerCase().includes('santander')) {
-          contasComOFX.add(`${filial.toLowerCase()}_@santander`);
-        }
-      });
-      
-      // Criar contas virtuais para as que têm despesas mas não têm OFX
-      const contasVirtuais = [];
-      contasComDespesas.forEach(key => {
-        const [filial, contaCorrente] = key.split('_');
-        
-        // Verificar se não tem OFX e se não é Santander/Sicredi/Itaú
-        const temOFX = contasComOFX.has(key);
-        const isSantander = contaCorrente.includes('santander');
-        const isSicredi = contaCorrente.includes('sicredi');
-        const isItau = contaCorrente.includes('itau') || contaCorrente.includes('itaú');
-        
-        if (!temOFX && !isSantander && !isSicredi && !isItau) {
-          // Extrair nome do banco da Conta Corrente
-          let nomeBanco = contaCorrente.replace('@', '').trim();
-          nomeBanco = nomeBanco.charAt(0).toUpperCase() + nomeBanco.slice(1);
-          
-          contasVirtuais.push({
-            summary: {
-              fantasia: filial.charAt(0).toUpperCase() + filial.slice(1),
-              banco: nomeBanco,
-              conta: 'VIRTUAL',
-              cnpj: '00000000000000', // CNPJ genérico
-              bankName: nomeBanco
-            },
-            saldoInicial: 0,
-            ficaNegativo: false,
-            projecaoDiaria: [],
-            isVirtual: true
-          });
-        }
-      });
-      
-      console.log(`📊 Contas virtuais criadas: ${contasVirtuais.length}`);
-      
       // Calcular projeções cruzando com despesas do dashboard
       const resultadosComProjecao = data.results.map(conta => {
         const despesasPorData = calcularDespesasPorConta(conta.summary.fantasia, conta.summary.banco);
@@ -473,47 +410,9 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         };
       });
 
-      // Calcular projeções para contas virtuais
-      const contasVirtuaisComProjecao = contasVirtuais.map(contaVirtual => {
-        const despesasPorData = calcularDespesasPorConta(
-          contaVirtual.summary.fantasia, 
-          contaVirtual.summary.banco
-        );
-
-        const datasOrdenadas = [...datasVisiveis].sort((a, b) => {
-          const [diaA, mesA, anoA] = a.split('/');
-          const [diaB, mesB, anoB] = b.split('/');
-          return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
-        });
-
-        const projecaoDiaria = [];
-        let saldoAcumulado = 0; // Saldo inicial zero
-
-        datasOrdenadas.forEach(data => {
-          const despesaDia = despesasPorData[data] || 0;
-          saldoAcumulado -= despesaDia;
-          projecaoDiaria.push({
-            data,
-            despesas: despesaDia,
-            saldoAposLancamentos: saldoAcumulado
-          });
-        });
-
-        const totalDespesas = Object.values(despesasPorData).reduce((a, b) => a + b, 0);
-        const saldoFinal = -totalDespesas;
-
-        return {
-          ...contaVirtual,
-          despesasPrevistas: totalDespesas,
-          saldoFinal,
-          ficaNegativo: saldoFinal < 0,
-          projecaoDiaria
-        };
-      });
-      
       setResults({
         ...data,
-        results: [...resultadosComProjecao, ...contasVirtuaisComProjecao]
+        results: resultadosComProjecao
       });
       setDetalheAberto(null);
     } catch (err) {
