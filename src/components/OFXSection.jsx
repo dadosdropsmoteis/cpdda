@@ -147,7 +147,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     });
   };
 
-  // Função para sugerir transferências
+  // Função para sugerir transferências (SEM aporte necessário)
   const sugerirTransferencias = (contas) => {
     const contasNegativas = contas.filter(c => c.ficaNegativo);
     const contasPositivas = contas.filter(c => !c.ficaNegativo && c.saldoFinal > 0);
@@ -167,7 +167,8 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
           sugestoes.push({
             de: origem.summary.fantasia, deBanco: origem.summary.banco,
             para: contaNegativa.summary.fantasia, paraBanco: contaNegativa.summary.banco,
-            valor: valorTransferencia, tipo: 'Mesma Unidade', prioridade: 1
+            valor: valorTransferencia, tipo: 'Mesma Unidade', prioridade: 1,
+            contaDestinoKey: `${contaNegativa.summary.fantasia}_${contaNegativa.summary.banco}`
           });
           valorRestante -= valorTransferencia;
         }
@@ -184,21 +185,57 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
             sugestoes.push({
               de: origem.summary.fantasia, deBanco: origem.summary.banco,
               para: contaNegativa.summary.fantasia, paraBanco: contaNegativa.summary.banco,
-              valor: valorTransferencia, tipo: 'Entre Unidades (mesma raiz CNPJ)', prioridade: 2
+              valor: valorTransferencia, tipo: 'Entre Unidades (mesma raiz CNPJ)', prioridade: 2,
+              contaDestinoKey: `${contaNegativa.summary.fantasia}_${contaNegativa.summary.banco}`
             });
             valorRestante -= valorTransferencia;
           }
         });
       }
-      if (valorRestante > 100) {
-        sugestoes.push({
-          de: 'APORTE EXTERNO', deBanco: '',
-          para: contaNegativa.summary.fantasia, paraBanco: contaNegativa.summary.banco,
-          valor: valorRestante, tipo: 'Aporte Necessário', prioridade: 3
-        });
-      }
     });
     return sugestoes.sort((a, b) => a.prioridade - b.prioridade);
+  };
+  
+  // Calcular aportes necessários após transferências confirmadas
+  const calcularAportesNecessarios = (contas, sugestoesOriginais) => {
+    // Calcular saldos ajustados por conta
+    const saldosPorConta = {};
+    contas.forEach(c => {
+      const key = `${c.summary.fantasia}_${c.summary.banco}`;
+      saldosPorConta[key] = c.saldoFinal;
+    });
+    
+    // Aplicar transferências confirmadas
+    sugestoesOriginais.forEach((s, i) => {
+      if (transferenciasConfirmadas.has(i)) {
+        const keyOrigem = `${s.de}_${s.deBanco}`;
+        const keyDestino = `${s.para}_${s.paraBanco}`;
+        saldosPorConta[keyOrigem] = (saldosPorConta[keyOrigem] || 0) - s.valor;
+        saldosPorConta[keyDestino] = (saldosPorConta[keyDestino] || 0) + s.valor;
+      }
+    });
+    
+    // Calcular aportes necessários para contas ainda negativas
+    const aportes = [];
+    Object.entries(saldosPorConta).forEach(([key, saldo]) => {
+      if (saldo < 0) {
+        const [fantasia, banco] = key.split('_');
+        const valorNecessario = Math.abs(saldo);
+        if (valorNecessario > 100) {
+          aportes.push({
+            de: 'APORTE EXTERNO',
+            deBanco: '',
+            para: fantasia,
+            paraBanco: banco,
+            valor: valorNecessario,
+            tipo: 'Aporte Necessário',
+            prioridade: 3
+          });
+        }
+      }
+    });
+    
+    return aportes;
   };
 
   const handleFiles = useCallback(async (e) => {
@@ -267,7 +304,9 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
 
   const fmt = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const sugestoesTransferencia = results ? sugerirTransferencias(results.results) : [];
+  const sugestoesBase = results ? sugerirTransferencias(results.results) : [];
+  const aportesNecessarios = results ? calcularAportesNecessarios(results.results, sugestoesBase) : [];
+  const sugestoesTransferencia = [...sugestoesBase, ...aportesNecessarios];
   
   const resultadosComAjustes = results ? calcularSaldosComTransferencias(results.results, sugestoesTransferencia) : [];
   
