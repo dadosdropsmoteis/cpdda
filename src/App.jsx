@@ -1183,9 +1183,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Seção Extratos OFX */}
-                <OFXSection dados={dados} datasVisiveis={datasVisiveis} />
-
                 {/* Gráfico Geral - Empilhado por Categoria */}
                 <div className="mb-8 grafico-print">
                   <div className="flex items-center justify-between mb-4">
@@ -2179,6 +2176,9 @@ export default function App() {
                 </div>
               </>
             )}
+
+            {/* Seção Extratos OFX - no final */}
+            {dados.length > 0 && <OFXSection dados={dados} datasVisiveis={datasVisiveis} />}
 
             {dados.length === 0 && !loading && (
               <div className="text-center py-12 text-gray-500">
