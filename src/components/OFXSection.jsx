@@ -953,6 +953,22 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
               )}
             </div>
 
+            {/* Botão Importar CSV - Sempre visível */}
+            <div className="flex justify-end gap-2 mb-4">
+              <label className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 cursor-pointer">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Importar CSV Saldos
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
             {loading && (
               <div className="text-center py-8 text-gray-500">
                 <svg className="animate-spin h-8 w-8 mx-auto text-indigo-600" fill="none" viewBox="0 0 24 24">
@@ -967,29 +983,6 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
               <>
                 {/* Botões de Ação */}
                 <div className="flex justify-end gap-3 mb-4">
-                  <button
-                    disabled
-                    className="px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed flex items-center gap-2 opacity-60"
-                    title="Funcionalidade em desenvolvimento"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    API Santander (Em breve)
-                  </button>
-                  
-                  <label className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 cursor-pointer">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    Importar CSV Saldos
-                    <input
-                      type="file"
-                      accept=".csv"
-                      onChange={handleCSVUpload}
-                      className="hidden"
-                    />
-                  </label>
                   <button
                     onClick={() => setModalAdicionarConta(true)}
                     className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
@@ -1183,7 +1176,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                             {formatBRL(r.saldo)}
                           </td>
                           <td className="border border-gray-200 px-3 py-2 text-right text-orange-600">
-                            {formatBRL(r.despesasTotais || 0)}
+                            {formatBRL(r.despesasPrevistas || 0)}
                           </td>
                           <td className={`border border-gray-200 px-3 py-2 text-right font-bold ${r.ficaNegativo ? 'text-red-600' : 'text-emerald-600'}`}>
                             {formatBRL(r.saldoFinal)}
