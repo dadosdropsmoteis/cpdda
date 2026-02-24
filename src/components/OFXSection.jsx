@@ -163,6 +163,60 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     return sugestoes.sort((a, b) => a.prioridade - b.prioridade);
   };
 
+  // Função auxiliar para buscar campo
+  const buscarCampo = (item, ...nomes) => {
+    for (const nome of nomes) {
+      if (item[nome] !== undefined && item[nome] !== null && item[nome] !== '') return item[nome];
+    }
+    const chaves = Object.keys(item);
+    for (const nome of nomes) {
+      const chave = chaves.find(k => k.trim().toLowerCase() === nome.trim().toLowerCase());
+      if (chave && item[chave] !== undefined && item[chave] !== null && item[chave] !== '') return item[chave];
+    }
+    return undefined;
+  };
+
+  // Função para parsear valor
+  const parsearValor = (valorStr) => {
+    if (!valorStr) return 0;
+    const str = String(valorStr).replace(/[^\d,.-]/g, '');
+    if (!str) return 0;
+    const temVirgula = str.includes(',');
+    const temPonto = str.includes('.');
+    if (temVirgula && temPonto) {
+      const posVirgula = str.lastIndexOf(',');
+      const posPonto = str.lastIndexOf('.');
+      if (posVirgula > posPonto) {
+        return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+      } else {
+        return parseFloat(str.replace(/,/g, ''));
+      }
+    } else if (temVirgula) {
+      return parseFloat(str.replace(',', '.'));
+    } else {
+      return parseFloat(str);
+    }
+  };
+
+  // Calcular despesas por conta e data
+  const calcularDespesasPorConta = (fantasia, cnpj) => {
+    if (!dados || dados.length === 0) return {};
+    const despesasPorData = {};
+    dados.forEach(item => {
+      const filial = buscarCampo(item, 'Filial');
+      const dataVencimento = buscarCampo(item, 'Vencimento');
+      const valorRaw = buscarCampo(item, 'Valor');
+      const valor = parsearValor(valorRaw);
+      if (filial === fantasia && datasVisiveis.includes(dataVencimento)) {
+        if (!despesasPorData[dataVencimento]) {
+          despesasPorData[dataVencimento] = 0;
+        }
+        despesasPorData[dataVencimento] += valor;
+      }
+    });
+    return despesasPorData;
+  };
+
   const fmt = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Ordenar resultados
