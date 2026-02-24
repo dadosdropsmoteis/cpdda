@@ -123,6 +123,15 @@ export function parseOFX(content, accountsMap = {}) {
 
   // Cruzamento com tabela de contas
   const lookupKey = bankId && acctId ? `${bankId}_${acctId}` : null;
+  
+  // DEBUG: Log para identificar contas não mapeadas
+  if (lookupKey && !accountsMap[lookupKey]) {
+    console.log('⚠️ Conta não encontrada no mapa:');
+    console.log('  Lookup Key:', lookupKey);
+    console.log('  BANKID:', bankId);
+    console.log('  ACCTID:', acctId);
+  }
+  
   const accountInfo = lookupKey ? accountsMap[lookupKey] || null : null;
   const bankName = bankId ? (BANK_NAMES[bankId] || `Banco ${bankId}`) : null;
 
