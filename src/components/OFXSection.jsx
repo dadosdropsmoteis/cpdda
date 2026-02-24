@@ -19,7 +19,7 @@ import React, { useState, useCallback } from 'react';
 import { parseMultipleOFX, readOFXFile, formatBRL } from '../utils/ofxParser';
 import accountsMap from '../data/accountsMap';
 
-export default function OFXSection() {
+export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [expandida, setExpandida] = useState(true);
@@ -43,7 +43,51 @@ export default function OFXSection() {
       
       console.log('✅ Parsing completo. Resultados:', data);
       
-      setResults(data);
+      // Calcular projeções cruzando com despesas
+      const resultadosComProjecao = data.results.map(conta => {
+        const despesasPorData = calcularDespesasPorConta(
+          conta.summary.fantasia,
+          conta.summary.cnpj
+        );
+
+        // Ordenar datas
+        const datasOrdenadas = [...datasVisiveis].sort((a, b) => {
+          const [diaA, mesA, anoA] = a.split('/');
+          const [diaB, mesB, anoB] = b.split('/');
+          return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
+        });
+
+        // Calcular saldo por dia
+        const projecaoDiaria = [];
+        let saldoAcumulado = conta.saldo || 0;
+
+        datasOrdenadas.forEach(data => {
+          const despesaDia = despesasPorData[data] || 0;
+          saldoAcumulado -= despesaDia;
+          projecaoDiaria.push({
+            data,
+            despesas: despesaDia,
+            saldoAposLancamentos: saldoAcumulado
+          });
+        });
+
+        const saldoFinal = projecaoDiaria.length > 0 
+          ? projecaoDiaria[projecaoDiaria.length - 1].saldoAposLancamentos 
+          : conta.saldo;
+
+        return {
+          ...conta,
+          despesasTotais: Object.values(despesasPorData).reduce((a, b) => a + b, 0),
+          projecaoDiaria,
+          saldoFinal,
+          ficaNegativo: saldoFinal < 0
+        };
+      });
+
+      setResults({
+        ...data,
+        results: resultadosComProjecao
+      });
       setDetalheAberto(null);
     } catch (err) {
       console.error('❌ Erro no parsing:', err);
