@@ -312,22 +312,55 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
           }
         });
       }
-      
-      // Prioridade 3: Aporte Externo Necessário
-      if (valorRestante > 100) {
-        novasSugestoes.push({
-          de: 'APORTE EXTERNO',
-          deBanco: '',
-          para: contaNegativa.fantasia,
-          paraBanco: contaNegativa.banco,
-          valor: valorRestante,
-          tipo: 'Aporte Necessário',
-          prioridade: 3
-        });
-      }
     });
     
     return novasSugestoes.sort((a, b) => a.prioridade - b.prioridade);
+  };
+  
+  // Calcular aportes necessários APENAS com base nas transferências CONFIRMADAS
+  const calcularAportesNecessarios = (contas, transferenciasConfirmadas) => {
+    // Calcular saldos após transferências confirmadas
+    const saldosPorConta = {};
+    contas.forEach(c => {
+      const key = `${c.summary.fantasia}_${c.summary.banco}`;
+      saldosPorConta[key] = c.saldoFinal;
+    });
+    
+    // Aplicar APENAS transferências confirmadas
+    transferenciasConfirmadas.forEach(t => {
+      if (t.prioridade !== 3) { // Ignorar aportes
+        const keyOrigem = `${t.de}_${t.deBanco}`;
+        const keyDestino = `${t.para}_${t.paraBanco}`;
+        if (saldosPorConta[keyOrigem] !== undefined) {
+          saldosPorConta[keyOrigem] -= t.valor;
+        }
+        if (saldosPorConta[keyDestino] !== undefined) {
+          saldosPorConta[keyDestino] += t.valor;
+        }
+      }
+    });
+    
+    // Gerar aportes para contas ainda negativas
+    const aportes = [];
+    Object.entries(saldosPorConta).forEach(([key, saldo]) => {
+      if (saldo < 0) {
+        const [fantasia, banco] = key.split('_');
+        const valorNecessario = Math.abs(saldo);
+        if (valorNecessario > 100) {
+          aportes.push({
+            de: 'APORTE EXTERNO',
+            deBanco: '',
+            para: fantasia,
+            paraBanco: banco,
+            valor: valorNecessario,
+            tipo: 'Aporte Necessário',
+            prioridade: 3
+          });
+        }
+      }
+    });
+    
+    return aportes;
   };
 
   const handleFiles = useCallback(async (e) => {
@@ -407,12 +440,18 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       transferenciasConfirmadas
     );
     
-    // Se não há confirmadas, retornar só as novas
+    // Calcular aportes necessários baseado APENAS nas confirmadas
+    const aportes = calcularAportesNecessarios(
+      results.results,
+      transferenciasConfirmadas
+    );
+    
+    // Se não há confirmadas, retornar novas + aportes
     if (transferenciasConfirmadas.length === 0) {
-      return novasNaoConfirmadas;
+      return [...novasNaoConfirmadas, ...aportes];
     }
     
-    // Combinar: confirmadas nas posições originais + novas no final
+    // Combinar: confirmadas nas posições originais + novas no final + aportes
     const mapa = new Map();
     
     // Adicionar confirmadas
@@ -428,6 +467,15 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         proximoIndice++;
       }
       mapa.set(proximoIndice, { ...sug, confirmada: false });
+      proximoIndice++;
+    });
+    
+    // Adicionar aportes no final
+    aportes.forEach(aporte => {
+      while (mapa.has(proximoIndice)) {
+        proximoIndice++;
+      }
+      mapa.set(proximoIndice, { ...aporte, confirmada: false });
       proximoIndice++;
     });
     
