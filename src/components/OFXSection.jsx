@@ -46,15 +46,30 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   };
 
   // Calcular despesas por conta e data
-  const calcularDespesasPorConta = (fantasia) => {
+  const calcularDespesasPorConta = (fantasia, banco) => {
     if (!dados || dados.length === 0) return {};
     const despesasPorData = {};
+    
     dados.forEach(item => {
       const filial = buscarCampo(item, 'Filial');
+      const contaCorrente = buscarCampo(item, 'Conta Corrente');
       const dataVencimento = buscarCampo(item, 'Vencimento');
       const valorRaw = buscarCampo(item, 'Valor');
       const valor = parsearValor(valorRaw);
-      if (filial === fantasia && datasVisiveis.includes(dataVencimento)) {
+      
+      // Verificar se a Filial corresponde
+      const filialMatch = filial === fantasia;
+      
+      // Verificar Conta Corrente - para Santander pode ter @ ou não
+      let contaMatch = false;
+      if (banco && banco.toLowerCase().includes('santander')) {
+        contaMatch = contaCorrente === banco || contaCorrente === `@${banco}`;
+      } else {
+        contaMatch = contaCorrente === banco;
+      }
+      
+      // Ambos devem corresponder + estar nas datas visíveis
+      if (filialMatch && contaMatch && datasVisiveis.includes(dataVencimento)) {
         if (!despesasPorData[dataVencimento]) {
           despesasPorData[dataVencimento] = 0;
         }
@@ -136,7 +151,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       
       // Calcular projeções cruzando com despesas do dashboard
       const resultadosComProjecao = data.results.map(conta => {
-        const despesasPorData = calcularDespesasPorConta(conta.summary.fantasia);
+        const despesasPorData = calcularDespesasPorConta(conta.summary.fantasia, conta.summary.banco);
 
         // Ordenar datas
         const datasOrdenadas = [...datasVisiveis].sort((a, b) => {
