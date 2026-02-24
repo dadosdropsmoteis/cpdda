@@ -783,6 +783,51 @@ const accountsMap = {
     "acctid": "0953130021981",
     "contaOriginal": "0953 13002198-1"
   }
+},
+  "0748_4340000000119586": {
+    "nrDoc": 1,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "BARRETOS EXPRESS",
+    "cidade": "Barretos",
+    "cnpj": "37789912000285",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "0334119586",
+    "contaOriginal": "0334 11958-6"
+  },
+  "0748_4340000000641402": {
+    "nrDoc": 13,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "HARAAM",
+    "cidade": "Araraquara",
+    "cnpj": "37789912000447",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "0334641402",
+    "contaOriginal": "0334 64140-2"
+  },
+  "0748_4340000000166531": {
+    "nrDoc": 3,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "DROPS RIO PRETO",
+    "cidade": "Guapiaçu",
+    "cnpj": "37789912000366",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "0334166531",
+    "contaOriginal": "0334 16653-1"
+  },
+  "0748_4340000000050976": {
+    "nrDoc": 2,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "BARRETOS MATRIZ",
+    "cidade": "Barretos",
+    "cnpj": "26411320000128",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "0334050976",
+    "contaOriginal": "0334 05097-6"
+  },
 };
 
 export default accountsMap;
