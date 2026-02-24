@@ -138,10 +138,14 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       const filialRaw = buscarCampo(item, 'Minha Empresa (Nome Fantasia)', 'Filial');
       const filialMapeada = mapearNomeFilial(filialRaw);
       const contaCorrente = buscarCampo(item, 'Conta Corrente');
+      const tipoContaCorrente = buscarCampo(item, 'Tipo da Conta Corrente');
       const dataVencimentoRaw = buscarCampo(item, 'Data de Vencimento', 'Vencimento');
       const dataVencimento = normalizarData(dataVencimentoRaw);
       const valorRaw = buscarCampo(item, 'Valor da Conta', 'Valor');
       const valor = Math.abs(parsearValor(valorRaw)); // Usar valor absoluto
+      
+      // FILTRO CRÍTICO: Apenas Conta Corrente
+      if (tipoContaCorrente !== 'Conta Corrente') return;
       
       // Verificar se a Filial corresponde (case insensitive e mapeada)
       const filialMatch = filialMapeada && filialMapeada.toLowerCase() === fantasiaMapeada.toLowerCase();
@@ -387,11 +391,13 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         const filialRaw = buscarCampo(item, 'Minha Empresa (Nome Fantasia)', 'Filial');
         const filial = mapearNomeFilial(filialRaw);
         const contaCorrente = buscarCampo(item, 'Conta Corrente');
+        const tipoContaCorrente = buscarCampo(item, 'Tipo da Conta Corrente');
         const dataVencimentoRaw = buscarCampo(item, 'Data de Vencimento', 'Vencimento');
         const dataVencimento = normalizarData(dataVencimentoRaw);
         const cnpjExcel = buscarCampo(item, 'Minha Empresa (CNPJ)');
         
-        if (filial && contaCorrente && dataVencimento && datasVisiveis.includes(dataVencimento)) {
+        // FILTRO CRÍTICO: Apenas Conta Corrente
+        if (filial && contaCorrente && tipoContaCorrente === 'Conta Corrente' && dataVencimento && datasVisiveis.includes(dataVencimento)) {
           const key = `${filial.toLowerCase()}_${contaCorrente.toLowerCase()}`;
           if (!contasComDespesas.has(key)) {
             contasComDespesas.set(key, {
