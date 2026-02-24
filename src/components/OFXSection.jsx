@@ -486,6 +486,10 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
 
         return {
           ...conta,
+          summary: {
+            ...conta.summary,
+            fantasia: fantasiaCapitalizada
+          },
           despesasTotais: Object.values(despesasPorData).reduce((a, b) => a + b, 0),
           projecaoDiaria,
           saldoFinal,
