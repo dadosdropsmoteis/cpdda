@@ -372,6 +372,90 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       const fileContents = await Promise.all(files.map(readOFXFile));
       const data = parseMultipleOFX(fileContents, accountsMap);
       
+      // Criar mapa de CNPJs por filial (das contas que têm OFX)
+      const cnpjPorFilial = {};
+      data.results.forEach(conta => {
+        const filial = conta.summary.fantasia.toLowerCase();
+        if (conta.summary.cnpj && !cnpjPorFilial[filial]) {
+          cnpjPorFilial[filial] = conta.summary.cnpj;
+        }
+      });
+      
+      // Identificar contas com despesas no Excel
+      const contasComDespesas = new Map(); // key: filial_banco
+      dados.forEach(item => {
+        const filialRaw = buscarCampo(item, 'Minha Empresa (Nome Fantasia)', 'Filial');
+        const filial = mapearNomeFilial(filialRaw);
+        const contaCorrente = buscarCampo(item, 'Conta Corrente');
+        const dataVencimentoRaw = buscarCampo(item, 'Data de Vencimento', 'Vencimento');
+        const dataVencimento = normalizarData(dataVencimentoRaw);
+        const cnpjExcel = buscarCampo(item, 'Minha Empresa (CNPJ)');
+        
+        if (filial && contaCorrente && dataVencimento && datasVisiveis.includes(dataVencimento)) {
+          const key = `${filial.toLowerCase()}_${contaCorrente.toLowerCase()}`;
+          if (!contasComDespesas.has(key)) {
+            contasComDespesas.set(key, {
+              filial,
+              contaCorrente,
+              cnpj: cnpjExcel || cnpjPorFilial[filial.toLowerCase()] || null
+            });
+          }
+        }
+      });
+      
+      // Identificar contas que já têm OFX
+      const contasComOFX = new Set();
+      data.results.forEach(conta => {
+        const filial = conta.summary.fantasia.toLowerCase();
+        const banco = conta.summary.banco.toLowerCase();
+        contasComOFX.add(`${filial}_${banco}`);
+        
+        // Adicionar variação para Santander
+        if (banco.includes('santander')) {
+          contasComOFX.add(`${filial}_@santander`);
+        }
+      });
+      
+      // Criar contas virtuais para as que têm despesas mas não têm OFX
+      const contasVirtuais = [];
+      contasComDespesas.forEach((info, key) => {
+        if (!contasComOFX.has(key)) {
+          // Verificar se não é Santander/Sicredi/Itaú (esses devem ter OFX)
+          const conta = info.contaCorrente.toLowerCase();
+          const isSantander = conta.includes('santander');
+          const isSicredi = conta.includes('sicredi');
+          const isItau = conta.includes('itau') || conta.includes('itaú');
+          
+          if (!isSantander && !isSicredi && !isItau) {
+            // Extrair nome do banco
+            let nomeBanco = info.contaCorrente.replace('@', '').trim();
+            nomeBanco = nomeBanco.charAt(0).toUpperCase() + nomeBanco.slice(1);
+            
+            // Usar CNPJ real da filial
+            const cnpjReal = info.cnpj || '00000000000000';
+            
+            contasVirtuais.push({
+              summary: {
+                fantasia: info.filial,
+                banco: nomeBanco,
+                conta: 'VIRTUAL',
+                cnpj: cnpjReal, // CNPJ REAL da filial
+                bankName: nomeBanco
+              },
+              saldoInicial: 0,
+              ficaNegativo: false,
+              projecaoDiaria: [],
+              isVirtual: true
+            });
+          }
+        }
+      });
+      
+      console.log(`📊 Contas virtuais criadas: ${contasVirtuais.length}`);
+      if (contasVirtuais.length > 0) {
+        console.log('Contas virtuais:', contasVirtuais.map(c => `${c.summary.fantasia} (${c.summary.banco}) - CNPJ: ${c.summary.cnpj}`));
+      }
+      
       // Calcular projeções cruzando com despesas do dashboard
       const resultadosComProjecao = data.results.map(conta => {
         const despesasPorData = calcularDespesasPorConta(conta.summary.fantasia, conta.summary.banco);
@@ -410,9 +494,47 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         };
       });
 
+      // Calcular projeções para contas virtuais
+      const contasVirtuaisComProjecao = contasVirtuais.map(contaVirtual => {
+        const despesasPorData = calcularDespesasPorConta(
+          contaVirtual.summary.fantasia, 
+          contaVirtual.summary.banco
+        );
+
+        const datasOrdenadas = [...datasVisiveis].sort((a, b) => {
+          const [diaA, mesA, anoA] = a.split('/');
+          const [diaB, mesB, anoB] = b.split('/');
+          return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
+        });
+
+        const projecaoDiaria = [];
+        let saldoAcumulado = 0;
+
+        datasOrdenadas.forEach(data => {
+          const despesaDia = despesasPorData[data] || 0;
+          saldoAcumulado -= despesaDia;
+          projecaoDiaria.push({
+            data,
+            despesas: despesaDia,
+            saldoAposLancamentos: saldoAcumulado
+          });
+        });
+
+        const totalDespesas = Object.values(despesasPorData).reduce((a, b) => a + b, 0);
+        const saldoFinal = -totalDespesas;
+
+        return {
+          ...contaVirtual,
+          despesasPrevistas: totalDespesas,
+          saldoFinal,
+          ficaNegativo: saldoFinal < 0,
+          projecaoDiaria
+        };
+      });
+      
       setResults({
         ...data,
-        results: resultadosComProjecao
+        results: [...resultadosComProjecao, ...contasVirtuaisComProjecao]
       });
       setDetalheAberto(null);
     } catch (err) {
