@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { parseMultipleOFX, readOFXFile, formatBRL } from '../utils/ofxParser';
 import accountsMap from '../data/accountsMap';
 
@@ -9,7 +9,14 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   const [detalheAberto, setDetalheAberto] = useState(null);
   const [mostrarSugestoes, setMostrarSugestoes] = useState(true);
   const [ordenacao, setOrdenacao] = useState({ campo: 'saldoFinal', direcao: 'asc' });
-  const [transferenciasConfirmadas, setTransferenciasConfirmadas] = useState(new Set());
+  const [transferenciasConfirmadas, setTransferenciasConfirmadas] = useState([]);
+
+  // Normalizar nome da filial (remover "Drops " do início)
+  const normalizarNomeFilial = (nome) => {
+    if (!nome) return nome;
+    // Remover "Drops " ou "DROPS " do início (case insensitive)
+    return nome.replace(/^drops\\s+/i, '').trim();
+  };
 
   // Função auxiliar para buscar campo
   const buscarCampo = (item, ...nomes) => {
@@ -68,17 +75,21 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     if (!dados || dados.length === 0) return {};
     const despesasPorData = {};
     
+    // Mapear nome da fantasia do OFX
+    const fantasiaMapeada = mapearNomeFilial(fantasia);
+    
     dados.forEach(item => {
       // Buscar pelos nomes corretos das colunas do Excel
-      const filial = buscarCampo(item, 'Minha Empresa (Nome Fantasia)', 'Filial');
+      const filialRaw = buscarCampo(item, 'Minha Empresa (Nome Fantasia)', 'Filial');
+      const filialMapeada = mapearNomeFilial(filialRaw);
       const contaCorrente = buscarCampo(item, 'Conta Corrente');
       const dataVencimentoRaw = buscarCampo(item, 'Data de Vencimento', 'Vencimento');
       const dataVencimento = normalizarData(dataVencimentoRaw);
       const valorRaw = buscarCampo(item, 'Valor da Conta', 'Valor');
       const valor = Math.abs(parsearValor(valorRaw)); // Usar valor absoluto
       
-      // Verificar se a Filial corresponde (case insensitive)
-      const filialMatch = filial && filial.toLowerCase() === fantasia.toLowerCase();
+      // Verificar se a Filial corresponde (case insensitive e mapeada)
+      const filialMatch = filialMapeada && filialMapeada.toLowerCase() === fantasiaMapeada.toLowerCase();
       
       // Verificar Conta Corrente - para Santander pode ter @ ou não
       let contaMatch = false;
@@ -107,15 +118,16 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   };
 
   // Toggle de confirmação de transferência
-  const toggleTransferencia = (indice) => {
+  const toggleTransferencia = (sugestao, indice) => {
     setTransferenciasConfirmadas(prev => {
-      const novo = new Set(prev);
-      if (novo.has(indice)) {
-        novo.delete(indice);
+      const existe = prev.find(t => t.indice === indice);
+      if (existe) {
+        // Remover
+        return prev.filter(t => t.indice !== indice);
       } else {
-        novo.add(indice);
+        // Adicionar com dados completos
+        return [...prev, { ...sugestao, indice, confirmada: true }];
       }
-      return novo;
     });
   };
 
@@ -124,7 +136,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     const ajustes = {}; // { fantasia_banco: ajuste }
     
     sugestoes.forEach((s, i) => {
-      if (transferenciasConfirmadas.has(i) && s.prioridade !== 3) {
+      if (transferenciasConfirmadas.some(t => t.indice === i) && s.prioridade !== 3) {
         // Chave origem
         const keyOrigem = `${s.de}_${s.deBanco}`;
         ajustes[keyOrigem] = (ajustes[keyOrigem] || 0) - s.valor;
@@ -326,16 +338,45 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
 
   const fmt = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // Calcular sugestões considerando transferências já confirmadas
-  const transferenciasConfirmadasArray = results ? 
-    Array.from(transferenciasConfirmadas).map(idx => {
-      // Pegar sugestões iniciais para as confirmadas
-      const sugestoesIniciais = calcularSugestoesDinamicas(results.results, []);
-      return sugestoesIniciais[idx];
-    }).filter(Boolean) : [];
-  
-  const sugestoesTransferencia = results ? 
-    calcularSugestoesDinamicas(results.results, transferenciasConfirmadasArray) : [];
+  // Gerar sugestões mantendo as confirmadas fixas
+  const sugestoesTransferencia = useMemo(() => {
+    if (!results) return [];
+    
+    // Recalcular não confirmadas com base nas confirmadas
+    const novasNaoConfirmadas = calcularSugestoesDinamicas(
+      results.results, 
+      transferenciasConfirmadas
+    );
+    
+    // Se não há confirmadas, retornar só as novas
+    if (transferenciasConfirmadas.length === 0) {
+      return novasNaoConfirmadas;
+    }
+    
+    // Combinar: confirmadas nas posições originais + novas no final
+    const mapa = new Map();
+    
+    // Adicionar confirmadas
+    transferenciasConfirmadas.forEach(t => {
+      mapa.set(t.indice, { ...t, confirmada: true });
+    });
+    
+    // Adicionar novas (em índices que não tem confirmadas)
+    let proximoIndice = 0;
+    novasNaoConfirmadas.forEach(sug => {
+      // Encontrar próximo índice livre
+      while (mapa.has(proximoIndice)) {
+        proximoIndice++;
+      }
+      mapa.set(proximoIndice, { ...sug, confirmada: false });
+      proximoIndice++;
+    });
+    
+    // Converter para array ordenado por índice
+    return Array.from(mapa.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([_, sug]) => sug);
+  }, [results, transferenciasConfirmadas]);
   
   const resultadosComAjustes = results ? calcularSaldosComTransferencias(results.results, sugestoesTransferencia) : [];
   
@@ -526,8 +567,8 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                               <label className="flex items-center cursor-pointer flex-shrink-0">
                                 <input
                                   type="checkbox"
-                                  checked={transferenciasConfirmadas.has(i)}
-                                  onChange={() => toggleTransferencia(i)}
+                                  checked={transferenciasConfirmadas.some(t => t.indice === i)}
+                                  onChange={() => toggleTransferencia(s, i)}
                                   className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                 />
                               </label>
@@ -552,7 +593,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                                 )}
                                 <span className="font-semibold">{s.para}</span>
                                 <span className="text-gray-500">({s.paraBanco})</span>
-                                {transferenciasConfirmadas.has(i) && (
+                                {transferenciasConfirmadas.some(t => t.indice === i) && (
                                   <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded font-semibold">
                                     ✓ Confirmada
                                   </span>
