@@ -245,7 +245,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
             prioridade: 1
           });
           valorRestante -= valorTransferencia;
-          origem.saldo -= valorTransferencia; // Atualizar saldo disponível
+          origem.saldo = 0; // IMPORTANTE: Zerar saldo pois usou 100%
         }
       });
       
@@ -258,8 +258,11 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         
         contasMesmaRaiz.forEach(origem => {
           if (valorRestante <= 0 || origem.saldo <= 0) return;
-          const valorDisponivel = origem.saldo * 0.8; // Usar até 80% do saldo
-          const valorTransferencia = Math.min(valorRestante, valorDisponivel);
+          
+          // Transferir até 100% do saldo disponível
+          const valorTransferencia = Math.min(valorRestante, origem.saldo);
+          
+          // Só criar sugestão se for significativo (>= R$ 100)
           if (valorTransferencia >= 100) {
             novasSugestoes.push({
               de: origem.fantasia,
@@ -271,7 +274,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
               prioridade: 2
             });
             valorRestante -= valorTransferencia;
-            origem.saldo -= valorTransferencia; // Atualizar saldo disponível
+            origem.saldo = 0; // Zerar saldo pois usou tudo
           }
         });
       }
