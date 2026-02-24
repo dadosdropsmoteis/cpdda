@@ -12,6 +12,13 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   const [transferenciasConfirmadas, setTransferenciasConfirmadas] = useState([]);
   const [modalAdicionarConta, setModalAdicionarConta] = useState(false);
   const [novaContaForm, setNovaContaForm] = useState({ filial: '', banco: '', saldoInicial: '0' });
+  const [modalSantanderAPI, setModalSantanderAPI] = useState(false);
+  const [santanderConfig, setSantanderConfig] = useState({
+    apiKey: localStorage.getItem('santander_api_key') || '',
+    accountNumbers: '',
+    salvarChave: false
+  });
+  const [loadingSantander, setLoadingSantander] = useState(false);
 
   // Normalizar nome da filial (remover "Drops " do início)
   const normalizarNomeFilial = (nome) => {
@@ -189,6 +196,169 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     if (!cnpj) return null;
     const limpo = cnpj.replace(/[^\d]/g, '');
     return limpo.substring(0, 8);
+  };
+
+  // Buscar saldos via API Santander
+  const buscarSaldosSantander = async () => {
+    if (!santanderConfig.apiKey) {
+      alert('Por favor, insira a chave API do Santander');
+      return;
+    }
+    
+    setLoadingSantander(true);
+    
+    try {
+      // Salvar chave se solicitado
+      if (santanderConfig.salvarChave) {
+        localStorage.setItem('santander_api_key', santanderConfig.apiKey);
+      } else {
+        localStorage.removeItem('santander_api_key');
+      }
+      
+      // Processar números de contas (separados por vírgula ou linha)
+      const contas = santanderConfig.accountNumbers
+        .split(/[,\n]/)
+        .map(c => c.trim())
+        .filter(c => c);
+      
+      if (contas.length === 0) {
+        alert('Por favor, insira pelo menos um número de conta');
+        setLoadingSantander(false);
+        return;
+      }
+      
+      // Fazer requisições para cada conta
+      const resultadosAPI = [];
+      
+      for (const accountNumber of contas) {
+        try {
+          const response = await fetch('https://api-customer.santander.com.br/balance_statement/v1/accounts/balance', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Application-Key': santanderConfig.apiKey,
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              accountNumber: accountNumber
+            })
+          });
+          
+          if (!response.ok) {
+            console.error(\`Erro ao buscar conta \${accountNumber}:\`, response.status);
+            continue;
+          }
+          
+          const data = await response.json();
+          resultadosAPI.push({ accountNumber, data });
+          
+        } catch (error) {
+          console.error(\`Erro ao buscar conta \${accountNumber}:\`, error);
+        }
+      }
+      
+      if (resultadosAPI.length === 0) {
+        alert('Nenhuma conta foi carregada com sucesso. Verifique a chave API e números de conta.');
+        setLoadingSantander(false);
+        return;
+      }
+      
+      // Converter resposta da API para formato compatível com OFX
+      const contasSantander = resultadosAPI.map(resultado => {
+        const { accountNumber, data } = resultado;
+        
+        // Buscar informações da conta no accountsMap
+        const lookupKey = \`0033_\${accountNumber}\`;
+        const contaInfo = accountsMap[lookupKey] || {
+          fantasia: 'Conta Santander',
+          cnpj: '00000000000000'
+        };
+        
+        // Extrair saldo da resposta
+        const saldo = data.balance?.availableBalance || 0;
+        
+        return {
+          summary: {
+            fantasia: capitalizarNome(contaInfo.fantasia),
+            banco: 'Santander',
+            conta: accountNumber,
+            cnpj: contaInfo.cnpj,
+            bankName: 'Santander',
+            bankId: '0033'
+          },
+          saldo: saldo,
+          saldoInicial: saldo,
+          transactions: [],
+          isSantanderAPI: true
+        };
+      });
+      
+      // Calcular projeções para as contas
+      const contasComProjecao = contasSantander.map(conta => {
+        const despesasPorData = calcularDespesasPorConta(conta.summary.fantasia, conta.summary.banco);
+        
+        const datasOrdenadas = [...datasVisiveis].sort((a, b) => {
+          const [diaA, mesA, anoA] = a.split('/');
+          const [diaB, mesB, anoB] = b.split('/');
+          return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
+        });
+        
+        const projecaoDiaria = [];
+        let saldoAcumulado = conta.saldoInicial;
+        
+        datasOrdenadas.forEach(data => {
+          const despesaDia = despesasPorData[data] || 0;
+          saldoAcumulado -= despesaDia;
+          projecaoDiaria.push({
+            data,
+            despesas: despesaDia,
+            saldoAposLancamentos: saldoAcumulado
+          });
+        });
+        
+        const totalDespesas = Object.values(despesasPorData).reduce((a, b) => a + b, 0);
+        const saldoFinal = conta.saldoInicial - totalDespesas;
+        
+        return {
+          ...conta,
+          despesasPrevistas: totalDespesas,
+          saldoFinal,
+          ficaNegativo: saldoFinal < 0,
+          projecaoDiaria
+        };
+      });
+      
+      // Adicionar aos resultados existentes (ou criar novos)
+      if (results) {
+        setResults(prev => ({
+          ...prev,
+          results: [...prev.results, ...contasComProjecao]
+        }));
+      } else {
+        // Criar estrutura de results se não existir
+        const consolidado = {
+          identificados: contasComProjecao.length,
+          saldoTotal: contasComProjecao.reduce((sum, c) => sum + c.saldoInicial, 0),
+          despesasTotal: contasComProjecao.reduce((sum, c) => sum + (c.despesasPrevistas || 0), 0),
+          saldoFinalTotal: contasComProjecao.reduce((sum, c) => sum + c.saldoFinal, 0)
+        };
+        
+        setResults({
+          results: contasComProjecao,
+          consolidado
+        });
+      }
+      
+      alert(\`\${contasComProjecao.length} conta(s) Santander carregada(s) com sucesso!\`);
+      setModalSantanderAPI(false);
+      setSantanderConfig(prev => ({ ...prev, accountNumbers: '' }));
+      
+    } catch (error) {
+      console.error('Erro ao buscar saldos Santander:', error);
+      alert('Erro ao conectar com API Santander: ' + error.message);
+    } finally {
+      setLoadingSantander(false);
+    }
   };
 
   // Adicionar conta manualmente
@@ -1001,6 +1171,81 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
           </div>
         )}
       </div>
+      
+      {/* Modal API Santander */}
+      {modalSantanderAPI && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-4 text-red-600">🏦 API Santander</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Chave API (X-Application-Key)
+                </label>
+                <input
+                  type="password"
+                  value={santanderConfig.apiKey}
+                  onChange={(e) => setSantanderConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                  placeholder="Digite a chave API"
+                />
+                <div className="mt-2">
+                  <label className="flex items-center gap-2 text-sm text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={santanderConfig.salvarChave}
+                      onChange={(e) => setSantanderConfig(prev => ({ ...prev, salvarChave: e.target.checked }))}
+                      className="rounded"
+                    />
+                    Salvar chave localmente (apenas neste navegador)
+                  </label>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Números das Contas
+                </label>
+                <textarea
+                  value={santanderConfig.accountNumbers}
+                  onChange={(e) => setSantanderConfig(prev => ({ ...prev, accountNumbers: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                  placeholder="Ex: 0953130019502, 0953130030154"
+                  rows={3}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Separe múltiplas contas por vírgula ou quebra de linha
+                </p>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-xs text-yellow-800">
+                  ⚠️ <strong>Importante:</strong> A chave API será enviada diretamente do seu navegador para a API do Santander. 
+                  Para maior segurança, considere usar um proxy backend.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setModalSantanderAPI(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                disabled={loadingSantander}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={buscarSaldosSantander}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400"
+                disabled={loadingSantander}
+              >
+                {loadingSantander ? 'Buscando...' : 'Buscar Saldos'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Modal Adicionar Conta Manual */}
       {modalAdicionarConta && (
