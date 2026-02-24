@@ -183,8 +183,8 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     
     const novaConta = {
       summary: {
-        fantasia: novaContaForm.filial,
-        banco: novaContaForm.banco,
+        fantasia: capitalizarNome(novaContaForm.filial),
+        banco: capitalizarNome(novaContaForm.banco),
         conta: 'MANUAL',
         cnpj: '00000000000000', // Será atualizado depois se necessário
         bankName: novaContaForm.banco
@@ -437,6 +437,9 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       
       // Calcular projeções cruzando com despesas do dashboard
       const resultadosComProjecao = data.results.map(conta => {
+        // Capitalizar nome da filial
+        const fantasiaCapitalizada = capitalizarNome(conta.summary.fantasia);
+        
         const despesasPorData = calcularDespesasPorConta(conta.summary.fantasia, conta.summary.banco);
 
         // Ordenar datas
