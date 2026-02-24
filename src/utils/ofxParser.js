@@ -130,6 +130,9 @@ export function parseOFX(content, accountsMap = {}) {
     console.log('  Lookup Key:', lookupKey);
     console.log('  BANKID:', bankId);
     console.log('  ACCTID:', acctId);
+    console.log('  Total de chaves no map:', Object.keys(accountsMap).length);
+    console.log('  Chaves Sicredi longas disponíveis:', Object.keys(accountsMap).filter(k => k.includes('434000000')));
+    console.log('  Testando acesso direto:', accountsMap[lookupKey]);
   }
   
   const accountInfo = lookupKey ? accountsMap[lookupKey] || null : null;
