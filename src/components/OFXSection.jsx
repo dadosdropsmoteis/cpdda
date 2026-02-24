@@ -88,6 +88,23 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     return undefined;
   };
   
+  // Capitalizar nome da filial (Primeira letra maiúscula, resto minúscula)
+  const capitalizarNome = (nome) => {
+    if (!nome) return nome;
+    return nome
+      .toLowerCase()
+      .split(' ')
+      .map(palavra => {
+        // Exceções que devem permanecer em maiúsculas
+        if (['rv', 'poa', 'dps'].includes(palavra.toLowerCase())) {
+          return palavra.toUpperCase();
+        }
+        // Primeira letra maiúscula
+        return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+      })
+      .join(' ');
+  };
+
   // Função para normalizar data do Excel para dd/mm/yyyy
   const normalizarData = (data) => {
     if (!data) return null;
