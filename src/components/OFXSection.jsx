@@ -14,11 +14,10 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   const [novaContaForm, setNovaContaForm] = useState({ filial: '', banco: '', saldoInicial: '0' });
   const [modalSantanderAPI, setModalSantanderAPI] = useState(false);
   const [santanderConfig, setSantanderConfig] = useState({
-    clientId: localStorage.getItem('santander_client_id') || '',
-    clientSecret: localStorage.getItem('santander_client_secret') || '',
-    accountNumber: '',
-    salvarCredenciais: false
+    filial: '',
+    accountNumber: ''
   });
+  const [filiaisDisponiveis, setFiliaisDisponiveis] = useState([]);
   const [loadingSantander, setLoadingSantander] = useState(false);
 
   // Normalizar nome da filial (remover "Drops " do início)
@@ -199,15 +198,10 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     return limpo.substring(0, 8);
   };
 
-  // Buscar saldos via API Santander (com OAuth)
+  // Buscar saldos via API Santander (através do backend)
   const buscarSaldosSantander = async () => {
-    if (!santanderConfig.clientId || !santanderConfig.clientSecret) {
-      alert('Por favor, insira o Client ID e Client Secret do Santander');
-      return;
-    }
-    
-    if (!santanderConfig.accountNumber) {
-      alert('Por favor, insira o número da conta');
+    if (!santanderConfig.filial) {
+      alert('Por favor, selecione uma filial');
       return;
     }
     
@@ -1213,33 +1207,43 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Client ID
+                  Selecione a Filial
                 </label>
-                <input
-                  type="text"
-                  value={santanderConfig.clientId}
-                  onChange={(e) => setSantanderConfig(prev => ({ ...prev, clientId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 font-mono text-sm"
-                  placeholder="Ex: a1b2c3d4..."
-                />
+                <select
+                  value={santanderConfig.filial}
+                  onChange={(e) => setSantanderConfig(prev => ({ ...prev, filial: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="">-- Escolha uma filial --</option>
+                  <option value="Vale Dos Sinos">Vale Dos Sinos</option>
+                  <option value="Araraquara">Araraquara</option>
+                  <option value="Barretos">Barretos</option>
+                  <option value="Barretos Express">Barretos Express</option>
+                  <option value="Drops Rio Preto">Drops Rio Preto</option>
+                  <option value="Campinas">Campinas</option>
+                  <option value="Ribeirao Preto">Ribeirao Preto</option>
+                  <option value="Goiania">Goiânia</option>
+                  <option value="Caxias Do Sul">Caxias do Sul</option>
+                  <option value="Brasilia">Brasília</option>
+                  <option value="Xangai">Xangai</option>
+                  <option value="Tubarao">Tubarão</option>
+                  <option value="Palhoca">Palhoça</option>
+                  <option value="Porto Alegre">Porto Alegre</option>
+                  <option value="Novo Hamburgo">Novo Hamburgo</option>
+                  <option value="Rv Bangalo">RV Bangalo</option>
+                  <option value="Poa Zona Norte">POA Zona Norte</option>
+                  <option value="Camelot">Camelot</option>
+                  <option value="Bangalo">Bangalo</option>
+                  <option value="Villages">Villages</option>
+                  <option value="Zeax">Zeax</option>
+                  <option value="Poa Zona Sul">POA Zona Sul</option>
+                  <option value="Zaya">Zaya</option>
+                </select>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Client Secret
-                </label>
-                <input
-                  type="password"
-                  value={santanderConfig.clientSecret}
-                  onChange={(e) => setSantanderConfig(prev => ({ ...prev, clientSecret: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 font-mono text-sm"
-                  placeholder="Digite o client secret"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Número da Conta (teste)
+                  Número da Conta (opcional)
                 </label>
                 <input
                   type="text"
@@ -1249,25 +1253,13 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                   placeholder="Ex: 0953130019502"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Apenas uma conta para teste inicial
+                  Deixe em branco para buscar todas as contas configuradas da filial
                 </p>
-              </div>
-              
-              <div className="mt-2">
-                <label className="flex items-center gap-2 text-sm text-gray-600">
-                  <input
-                    type="checkbox"
-                    checked={santanderConfig.salvarCredenciais}
-                    onChange={(e) => setSantanderConfig(prev => ({ ...prev, salvarCredenciais: e.target.checked }))}
-                    className="rounded"
-                  />
-                  Salvar credenciais localmente (apenas neste navegador)
-                </label>
               </div>
               
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-800">
-                  ℹ️ <strong>Fluxo OAuth 2.0:</strong>
+                  🔐 <strong>Credenciais Seguras:</strong>
                   <br/>1. Obtém Access Token usando Client ID/Secret
                   <br/>2. Usa o token para buscar saldo da conta
                   <br/>3. Integra automaticamente com o dashboard
