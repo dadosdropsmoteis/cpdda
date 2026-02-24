@@ -245,7 +245,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
           });
           
           if (!response.ok) {
-            console.error(\`Erro ao buscar conta \${accountNumber}:\`, response.status);
+            console.error(`Erro ao buscar conta ${accountNumber}:`, response.status);
             continue;
           }
           
@@ -253,7 +253,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
           resultadosAPI.push({ accountNumber, data });
           
         } catch (error) {
-          console.error(\`Erro ao buscar conta \${accountNumber}:\`, error);
+          console.error(`Erro ao buscar conta ${accountNumber}:`, error);
         }
       }
       
@@ -268,7 +268,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         const { accountNumber, data } = resultado;
         
         // Buscar informações da conta no accountsMap
-        const lookupKey = \`0033_\${accountNumber}\`;
+        const lookupKey = `0033_${accountNumber}`;
         const contaInfo = accountsMap[lookupKey] || {
           fantasia: 'Conta Santander',
           cnpj: '00000000000000'
@@ -349,7 +349,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         });
       }
       
-      alert(\`\${contasComProjecao.length} conta(s) Santander carregada(s) com sucesso!\`);
+      alert(`${contasComProjecao.length} conta(s) Santander carregada(s) com sucesso!`);
       setModalSantanderAPI(false);
       setSantanderConfig(prev => ({ ...prev, accountNumbers: '' }));
       
