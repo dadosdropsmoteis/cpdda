@@ -380,6 +380,98 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     }
   };
 
+
+  // Processar CSV de saldos
+  const handleCSVUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      setLoading(true);
+      const text = await file.text();
+      const linhas = text.split('\n').filter(l => l.trim());
+      
+      // Parse CSV (pular cabeçalho)
+      const contas = linhas.slice(1).map(linha => {
+        const [filial, agencia, conta, saldo] = linha.split(',');
+        return {
+          filial: filial?.trim(),
+          saldo: parseFloat(saldo?.trim() || 0)
+        };
+      }).filter(c => c.filial && !isNaN(c.saldo));
+      
+      // Converter para formato OFX
+      const contasFormatadas = contas.map(c => ({
+        summary: {
+          fantasia: capitalizarNome(c.filial),
+          banco: 'Santander',
+          conta: 'CSV',
+          cnpj: '00000000000000',
+          bankName: 'Santander',
+          bankId: '0033'
+        },
+        saldo: c.saldo,
+        saldoInicial: c.saldo,
+        transactions: [],
+        isCSVImport: true
+      }));
+      
+      // Calcular projeções
+      const contasComProjecao = contasFormatadas.map(conta => {
+        const despesasPorData = calcularDespesasPorConta(conta.summary.fantasia, conta.summary.banco);
+        const datasOrdenadas = [...datasVisiveis].sort((a, b) => {
+          const [diaA, mesA, anoA] = a.split('/');
+          const [diaB, mesB, anoB] = b.split('/');
+          return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
+        });
+        
+        const projecaoDiaria = [];
+        let saldoAcumulado = conta.saldoInicial;
+        datasOrdenadas.forEach(data => {
+          const despesaDia = despesasPorData[data] || 0;
+          saldoAcumulado -= despesaDia;
+          projecaoDiaria.push({ data, despesas: despesaDia, saldoAposLancamentos: saldoAcumulado });
+        });
+        
+        const totalDespesas = Object.values(despesasPorData).reduce((a, b) => a + b, 0);
+        const saldoFinal = conta.saldoInicial - totalDespesas;
+        
+        return { ...conta, despesasPrevistas: totalDespesas, saldoFinal, ficaNegativo: saldoFinal < 0, projecaoDiaria };
+      });
+      
+      // Adicionar aos resultados
+      if (results) {
+        setResults(prev => ({
+          ...prev,
+          results: [...prev.results, ...contasComProjecao],
+          consolidado: {
+            ...prev.consolidado,
+            identificados: prev.consolidado.identificados + contasComProjecao.length,
+            saldoTotal: prev.consolidado.saldoTotal + contasComProjecao.reduce((sum, c) => sum + c.saldoInicial, 0),
+            despesasTotal: prev.consolidado.despesasTotal + contasComProjecao.reduce((sum, c) => sum + (c.despesasPrevistas || 0), 0),
+            saldoFinalTotal: prev.consolidado.saldoFinalTotal + contasComProjecao.reduce((sum, c) => sum + c.saldoFinal, 0)
+          }
+        }));
+      } else {
+        const consolidado = {
+          identificados: contasComProjecao.length,
+          saldoTotal: contasComProjecao.reduce((sum, c) => sum + c.saldoInicial, 0),
+          despesasTotal: contasComProjecao.reduce((sum, c) => sum + (c.despesasPrevistas || 0), 0),
+          saldoFinalTotal: contasComProjecao.reduce((sum, c) => sum + c.saldoFinal, 0)
+        };
+        setResults({ results: contasComProjecao, consolidado });
+      }
+      
+      alert(`✅ ${contasComProjecao.length} conta(s) importada(s)!`);
+      event.target.value = '';
+    } catch (error) {
+      console.error('Erro:', error);
+      alert('Erro ao processar CSV: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Adicionar conta manualmente
   const adicionarContaManual = () => {
     if (!novaContaForm.filial || !novaContaForm.banco) {
@@ -439,117 +531,6 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     // Fechar modal e limpar form
     setModalAdicionarConta(false);
     setNovaContaForm({ filial: '', banco: '', saldoInicial: '0' });
-  };
-
-  // Importar CSV de saldos
-  const importarCSVSaldos = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
-    // Validar se há dados de despesas
-    if (!dados || dados.length === 0) {
-      alert('⚠️ Por favor, faça upload do arquivo Excel de despesas primeiro!');
-      event.target.value = '';
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      const text = await file.text();
-      const linhas = text.split('\n').filter(l => l.trim()).slice(1); // Pular cabeçalho
-      
-      const contasCSV = linhas.map(linha => {
-        const [filial, agencia, conta, saldo] = linha.split(',');
-        return {
-          filial: capitalizarNome((filial || '').trim()),
-          saldo: parseFloat((saldo || '0').trim())
-        };
-      }).filter(c => c.filial && !isNaN(c.saldo) && c.saldo > 0);
-      
-      if (contasCSV.length === 0) {
-        alert('❌ Nenhuma conta válida encontrada no CSV');
-        event.target.value = '';
-        setLoading(false);
-        return;
-      }
-      
-      // Converter para formato OFX
-      const contasFormatadas = contasCSV.map(csvConta => {
-        const despesasPorData = calcularDespesasPorConta(csvConta.filial, 'Santander');
-        
-        const datasOrdenadas = [...datasVisiveis].sort((a, b) => {
-          const [diaA, mesA, anoA] = a.split('/');
-          const [diaB, mesB, anoB] = b.split('/');
-          return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
-        });
-        
-        const projecaoDiaria = [];
-        let saldoAcumulado = csvConta.saldo;
-        datasOrdenadas.forEach(data => {
-          const despesaDia = despesasPorData[data] || 0;
-          saldoAcumulado -= despesaDia;
-          projecaoDiaria.push({
-            data,
-            despesas: despesaDia,
-            saldoAposLancamentos: saldoAcumulado
-          });
-        });
-        
-        const totalDespesas = Object.values(despesasPorData).reduce((a, b) => a + b, 0);
-        const saldoFinal = csvConta.saldo - totalDespesas;
-        
-        return {
-          summary: {
-            fantasia: csvConta.filial,
-            banco: 'Santander',
-            conta: 'CSV',
-            cnpj: '00000000000000',
-            bankName: 'Santander',
-            bankId: '0033'
-          },
-          saldo: csvConta.saldo,
-          saldoInicial: csvConta.saldo,
-          transactions: [],
-          despesasPrevistas: totalDespesas,
-          saldoFinal,
-          ficaNegativo: saldoFinal < 0,
-          projecaoDiaria,
-          isCSVImport: true
-        };
-      });
-      
-      // Adicionar ou criar resultados
-      if (results) {
-        setResults(prev => ({
-          ...prev,
-          results: [...prev.results, ...contasFormatadas],
-          consolidado: {
-            identificados: prev.consolidado.identificados + contasFormatadas.length,
-            saldoTotal: prev.consolidado.saldoTotal + contasFormatadas.reduce((s, c) => s + c.saldoInicial, 0),
-            despesasTotal: prev.consolidado.despesasTotal + contasFormatadas.reduce((s, c) => s + c.despesasPrevistas, 0),
-            saldoFinalTotal: prev.consolidado.saldoFinalTotal + contasFormatadas.reduce((s, c) => s + c.saldoFinal, 0)
-          }
-        }));
-      } else {
-        setResults({
-          results: contasFormatadas,
-          consolidado: {
-            identificados: contasFormatadas.length,
-            saldoTotal: contasFormatadas.reduce((s, c) => s + c.saldoInicial, 0),
-            despesasTotal: contasFormatadas.reduce((s, c) => s + c.despesasPrevistas, 0),
-            saldoFinalTotal: contasFormatadas.reduce((s, c) => s + c.saldoFinal, 0)
-          }
-        });
-      }
-      
-      alert(`✅ ${contasFormatadas.length} conta(s) importada(s) do CSV!`);
-      event.target.value = '';
-    } catch (error) {
-      console.error('Erro ao importar CSV:', error);
-      alert('Erro ao processar CSV: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Toggle de confirmação de transferência
@@ -790,7 +771,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
             ...conta.summary,
             fantasia: fantasiaCapitalizada
           },
-          despesasPrevistas: Object.values(despesasPorData).reduce((a, b) => a + b, 0),
+          despesasTotais: Object.values(despesasPorData).reduce((a, b) => a + b, 0),
           projecaoDiaria,
           saldoFinal,
           ficaNegativo: saldoFinal < 0
@@ -884,7 +865,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       case 'saldoInicial':
         return dir * ((a.saldo || 0) - (b.saldo || 0));
       case 'despesas':
-        return dir * ((a.despesasPrevistas || 0) - (b.despesasPrevistas || 0));
+        return dir * ((a.despesasTotais || 0) - (b.despesasTotais || 0));
       case 'saldoFinal':
         return dir * ((a.saldoFinal || 0) - (b.saldoFinal || 0));
       default:
@@ -946,23 +927,6 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
 
         {expandida && (
           <div className="px-4 pb-4">
-            {/* Botão Importar CSV Saldos */}
-            <div className="mb-4 no-print">
-              <label className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg cursor-pointer transition-colors">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                Importar CSV Saldos
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={importarCSVSaldos}
-                  className="hidden"
-                />
-              </label>
-              <span className="text-xs text-gray-500 ml-3">CSV gerado pelo script de saldos Santander</span>
-            </div>
-            
             {/* Upload */}
             <div className="flex items-center gap-3 mb-4 no-print">
               <label className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg cursor-pointer transition-colors">
@@ -1013,6 +977,19 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                     </svg>
                     API Santander (Em breve)
                   </button>
+                  
+                  <label className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 cursor-pointer">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Importar CSV Saldos
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleCSVUpload}
+                      className="hidden"
+                    />
+                  </label>
                   <button
                     onClick={() => setModalAdicionarConta(true)}
                     className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
@@ -1037,7 +1014,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                   <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white">
                     <p className="text-xs opacity-90">Despesas Previstas</p>
                     <p className="text-2xl font-bold">
-                      R$ {fmt(resultadosOrdenados.reduce((s, r) => s + (r.despesasPrevistas || 0), 0))}
+                      R$ {fmt(resultadosOrdenados.reduce((s, r) => s + (r.despesasTotais || 0), 0))}
                     </p>
                   </div>
                   <div className={`rounded-lg p-4 text-white ${resultadosOrdenados.some(r => r.ficaNegativo) ? 'bg-gradient-to-br from-red-500 to-red-600' : 'bg-gradient-to-br from-emerald-500 to-emerald-600'}`}>
@@ -1206,7 +1183,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                             {formatBRL(r.saldo)}
                           </td>
                           <td className="border border-gray-200 px-3 py-2 text-right text-orange-600">
-                            {formatBRL(r.despesasPrevistas || 0)}
+                            {formatBRL(r.despesasTotais || 0)}
                           </td>
                           <td className={`border border-gray-200 px-3 py-2 text-right font-bold ${r.ficaNegativo ? 'text-red-600' : 'text-emerald-600'}`}>
                             {formatBRL(r.saldoFinal)}
