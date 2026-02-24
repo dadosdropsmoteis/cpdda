@@ -876,13 +876,14 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                 {/* Botões de Ação */}
                 <div className="flex justify-end gap-3 mb-4">
                   <button
-                    onClick={() => setModalSantanderAPI(true)}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                    disabled
+                    className="px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed flex items-center gap-2 opacity-60"
+                    title="Funcionalidade em desenvolvimento"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
-                    Buscar Saldos Santander
+                    API Santander (Em breve)
                   </button>
                   <button
                     onClick={() => setModalAdicionarConta(true)}
