@@ -22,6 +22,23 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     }
     return undefined;
   };
+  
+  // Função para normalizar data do Excel para dd/mm/yyyy
+  const normalizarData = (data) => {
+    if (!data) return null;
+    // Se já é string no formato dd/mm/yyyy
+    if (typeof data === 'string' && data.includes('/')) return data;
+    // Se é objeto Date ou string ISO
+    try {
+      const d = new Date(data);
+      const dia = String(d.getDate()).padStart(2, '0');
+      const mes = String(d.getMonth() + 1).padStart(2, '0');
+      const ano = d.getFullYear();
+      return `${dia}/${mes}/${ano}`;
+    } catch {
+      return null;
+    }
+  };
 
   // Função para parsear valor
   const parsearValor = (valorStr) => {
@@ -51,25 +68,27 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     const despesasPorData = {};
     
     dados.forEach(item => {
-      const filial = buscarCampo(item, 'Filial');
+      // Buscar pelos nomes corretos das colunas do Excel
+      const filial = buscarCampo(item, 'Minha Empresa (Nome Fantasia)', 'Filial');
       const contaCorrente = buscarCampo(item, 'Conta Corrente');
-      const dataVencimento = buscarCampo(item, 'Vencimento');
-      const valorRaw = buscarCampo(item, 'Valor');
-      const valor = parsearValor(valorRaw);
+      const dataVencimentoRaw = buscarCampo(item, 'Data de Vencimento', 'Vencimento');
+      const dataVencimento = normalizarData(dataVencimentoRaw);
+      const valorRaw = buscarCampo(item, 'Valor da Conta', 'Valor');
+      const valor = Math.abs(parsearValor(valorRaw)); // Usar valor absoluto
       
-      // Verificar se a Filial corresponde
-      const filialMatch = filial === fantasia;
+      // Verificar se a Filial corresponde (case insensitive)
+      const filialMatch = filial && filial.toLowerCase() === fantasia.toLowerCase();
       
       // Verificar Conta Corrente - para Santander pode ter @ ou não
       let contaMatch = false;
       if (banco && banco.toLowerCase().includes('santander')) {
-        contaMatch = contaCorrente === banco || contaCorrente === `@${banco}`;
+        contaMatch = contaCorrente === `@${banco}` || contaCorrente === banco || contaCorrente === '@Santander';
       } else {
         contaMatch = contaCorrente === banco;
       }
       
       // Ambos devem corresponder + estar nas datas visíveis
-      if (filialMatch && contaMatch && datasVisiveis.includes(dataVencimento)) {
+      if (filialMatch && contaMatch && dataVencimento && datasVisiveis.includes(dataVencimento)) {
         if (!despesasPorData[dataVencimento]) {
           despesasPorData[dataVencimento] = 0;
         }
