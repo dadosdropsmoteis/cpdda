@@ -660,6 +660,19 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
 
             {results && results.results.length > 0 && (
               <>
+                {/* Botão Adicionar Conta Manual */}
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={() => setModalAdicionarConta(true)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Adicionar Conta Manual
+                  </button>
+                </div>
+                
                 {/* Cards de Resumo */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                   <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
@@ -964,6 +977,72 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
           </div>
         )}
       </div>
+      
+      {/* Modal Adicionar Conta Manual */}
+      {modalAdicionarConta && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-4">Adicionar Conta Manual</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Filial
+                </label>
+                <input
+                  type="text"
+                  value={novaContaForm.filial}
+                  onChange={(e) => setNovaContaForm(prev => ({ ...prev, filial: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ex: Zeax"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Banco
+                </label>
+                <input
+                  type="text"
+                  value={novaContaForm.banco}
+                  onChange={(e) => setNovaContaForm(prev => ({ ...prev, banco: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ex: Banco do Brasil"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Saldo Inicial (opcional)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={novaContaForm.saldoInicial}
+                  onChange={(e) => setNovaContaForm(prev => ({ ...prev, saldoInicial: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setModalAdicionarConta(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={adicionarContaManual}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                Adicionar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
