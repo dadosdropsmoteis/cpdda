@@ -400,7 +400,7 @@ const accountsMap = {
   "0341_8408986365": {
     "nrDoc": 13,
     "descricao": "SP HOTELARIA SPE LTDA",
-    "fantasia": "HARAAM",
+    "fantasia": "Araraquara",
     "cidade": "Araraquara",
     "cnpj": "37789912000447",
     "banco": "Itaú",
@@ -411,7 +411,7 @@ const accountsMap = {
   "0748_0334641402": {
     "nrDoc": 13,
     "descricao": "SP HOTELARIA SPE LTDA",
-    "fantasia": "HARAAM",
+    "fantasia": "Araraquara",
     "cidade": "Araraquara",
     "cnpj": "37789912000447",
     "banco": "Sicredi",
@@ -422,7 +422,7 @@ const accountsMap = {
   "0033_0953130030154": {
     "nrDoc": 13,
     "descricao": "SP HOTELARIA SPE LTDA",
-    "fantasia": "HARAAM",
+    "fantasia": "Araraquara",
     "cidade": "Araraquara",
     "cnpj": "37789912000447",
     "banco": "Santander",
@@ -782,7 +782,7 @@ const accountsMap = {
     "bankid": "0033",
     "acctid": "0953130021981",
     "contaOriginal": "0953 13002198-1"
-  }
+  },
 },
   "0748_4340000000119586": {
     "nrDoc": 1,
@@ -798,7 +798,7 @@ const accountsMap = {
   "0748_4340000000641402": {
     "nrDoc": 13,
     "descricao": "SP HOTELARIA SPE LTDA",
-    "fantasia": "HARAAM",
+    "fantasia": "Araraquara",
     "cidade": "Araraquara",
     "cnpj": "37789912000447",
     "banco": "Sicredi",
@@ -828,6 +828,61 @@ const accountsMap = {
     "acctid": "0334050976",
     "contaOriginal": "0334 05097-6"
   },
+  "0748_4340000000456251": {
+      "nrDoc": 5,
+      "descricao": "DROPS VALE DOS SINOS SPE LTDA",
+      "fantasia": "VALE DOS SINOS",
+      "cidade": "Araricá",
+      "cnpj": "41622398000185",
+      "banco": "Sicredi",
+      "bankid": "0748",
+      "acctid": "4340000000456251",
+      "contaOriginal": "43400 00000456251"
+    },
+  "0748_4340000000119586": {
+      "nrDoc": 1,
+      "descricao": "SP HOTELARIA SPE LTDA",
+      "fantasia": "BARRETOS EXPRESS",
+      "cidade": "Barretos",
+      "cnpj": "37789912000285",
+      "banco": "Sicredi",
+      "bankid": "0748",
+      "acctid": "0334119586",
+      "contaOriginal": "0334 11958-6"
+    },
+  "0748_4340000000641402": {
+      "nrDoc": 13,
+      "descricao": "SP HOTELARIA SPE LTDA",
+      "fantasia": "Araraquara",
+      "cidade": "Araraquara",
+      "cnpj": "37789912000447",
+      "banco": "Sicredi",
+      "bankid": "0748",
+      "acctid": "0334641402",
+      "contaOriginal": "0334 64140-2"
+    },
+  "0748_4340000000166531": {
+      "nrDoc": 3,
+      "descricao": "SP HOTELARIA SPE LTDA",
+      "fantasia": "DROPS RIO PRETO",
+      "cidade": "Guapiaçu",
+      "cnpj": "37789912000366",
+      "banco": "Sicredi",
+      "bankid": "0748",
+      "acctid": "0334166531",
+      "contaOriginal": "0334 16653-1"
+    },
+  "0748_4340000000050976": {
+      "nrDoc": 2,
+      "descricao": "SP HOTELARIA SPE LTDA",
+      "fantasia": "BARRETOS MATRIZ",
+      "cidade": "Barretos",
+      "cnpj": "26411320000128",
+      "banco": "Sicredi",
+      "bankid": "0748",
+      "acctid": "0334050976",
+      "contaOriginal": "0334 05097-6"
+    }
 };
 
 export default accountsMap;
