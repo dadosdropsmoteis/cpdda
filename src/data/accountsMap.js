@@ -103,7 +103,7 @@ const accountsMap = {
   "0341_8408993478": {
     "nrDoc": 4,
     "descricao": "HORTEL HOTELARIA LTDA",
-    "fantasia": "DROPS CAMPINAS",
+    "fantasia": "Campinas",
     "cidade": "Campinas",
     "cnpj": "53729935000170",
     "banco": "Itaú",
@@ -114,7 +114,7 @@ const accountsMap = {
   "0748_0334147714": {
     "nrDoc": 4,
     "descricao": "HORTEL HOTELARIA LTDA",
-    "fantasia": "DROPS CAMPINAS",
+    "fantasia": "Campinas",
     "cidade": "Campinas",
     "cnpj": "53729935000170",
     "banco": "Sicredi",
@@ -125,7 +125,7 @@ const accountsMap = {
   "0033_0953130020801": {
     "nrDoc": 4,
     "descricao": "HORTEL HOTELARIA LTDA",
-    "fantasia": "DROPS CAMPINAS",
+    "fantasia": "Campinas",
     "cidade": "Campinas",
     "cnpj": "53729935000170",
     "banco": "Santander",
@@ -136,7 +136,7 @@ const accountsMap = {
   "0341_7197998698": {
     "nrDoc": 5,
     "descricao": "DROPS MOTEL BRASILIA SPE LTDA",
-    "fantasia": "DROPS BRASÍLIA",
+    "fantasia": "Brasilia",
     "cidade": "Brasilia",
     "cnpj": "34426848000107",
     "banco": "Itaú",
@@ -147,7 +147,7 @@ const accountsMap = {
   "0748_0334003736": {
     "nrDoc": 5,
     "descricao": "DROPS MOTEL BRASILIA SPE LTDA",
-    "fantasia": "DROPS BRASÍLIA",
+    "fantasia": "Brasilia",
     "cidade": "Brasilia",
     "cnpj": "34426848000107",
     "banco": "Sicredi",
@@ -158,7 +158,7 @@ const accountsMap = {
   "0033_0953130017634": {
     "nrDoc": 5,
     "descricao": "DROPS MOTEL BRASILIA SPE LTDA",
-    "fantasia": "DROPS BRASÍLIA",
+    "fantasia": "Brasilia",
     "cidade": "Brasilia",
     "cnpj": "34426848000107",
     "banco": "Santander",
@@ -202,7 +202,7 @@ const accountsMap = {
   "0341_8408994765": {
     "nrDoc": 7,
     "descricao": "DPS POA HOTEL SPE LTDA",
-    "fantasia": "DPS PORTO ALEGRE",
+    "fantasia": "Porto Alegre",
     "cidade": "Porto Alegre",
     "cnpj": "44681493000148",
     "banco": "Itaú",
@@ -213,7 +213,7 @@ const accountsMap = {
   "0748_0334481434": {
     "nrDoc": 7,
     "descricao": "DPS POA HOTEL SPE LTDA",
-    "fantasia": "DPS PORTO ALEGRE",
+    "fantasia": "Porto Alegre",
     "cidade": "Porto Alegre",
     "cnpj": "44681493000148",
     "banco": "Sicredi",
@@ -224,7 +224,7 @@ const accountsMap = {
   "0033_0953130025150": {
     "nrDoc": 7,
     "descricao": "DPS POA HOTEL SPE LTDA",
-    "fantasia": "DPS PORTO ALEGRE",
+    "fantasia": "Porto Alegre",
     "cidade": "Porto Alegre",
     "cnpj": "44681493000148",
     "banco": "Santander",
@@ -235,7 +235,7 @@ const accountsMap = {
   "0341_8408980319": {
     "nrDoc": 8,
     "descricao": "DPS POA HOTEL SPE LTDA",
-    "fantasia": "DPS GOIÂNIA",
+    "fantasia": "Goiania",
     "cidade": "Aparecida de Goiânia",
     "cnpj": "44681493000229",
     "banco": "Itaú",
@@ -246,7 +246,7 @@ const accountsMap = {
   "0748_0334658992": {
     "nrDoc": 8,
     "descricao": "DPS POA HOTEL SPE LTDA",
-    "fantasia": "DPS GOIÂNIA",
+    "fantasia": "Goiania",
     "cidade": "Aparecida de Goiânia",
     "cnpj": "44681493000229",
     "banco": "Sicredi",
@@ -257,7 +257,7 @@ const accountsMap = {
   "0033_0803130007778": {
     "nrDoc": 8,
     "descricao": "DPS POA HOTEL SPE LTDA",
-    "fantasia": "DPS GOIÂNIA",
+    "fantasia": "Goiania",
     "cidade": "Aparecida de Goiânia",
     "cnpj": "44681493000229",
     "banco": "Santander",
@@ -268,7 +268,7 @@ const accountsMap = {
   "0341_8408994773": {
     "nrDoc": 9,
     "descricao": "DROPS POA NORTE HOTEL SPE LTDA - CG",
-    "fantasia": "POA TAIKO",
+    "fantasia": "POA Zona Norte",
     "cidade": "Porto Alegre",
     "cnpj": "44981299000188",
     "banco": "Itaú",
@@ -279,7 +279,7 @@ const accountsMap = {
   "0748_0334482755": {
     "nrDoc": 9,
     "descricao": "DROPS POA NORTE HOTEL SPE LTDA - CG",
-    "fantasia": "POA TAIKO",
+    "fantasia": "POA Zona Norte",
     "cidade": "Porto Alegre",
     "cnpj": "44981299000188",
     "banco": "Sicredi",
@@ -290,7 +290,7 @@ const accountsMap = {
   "0033_0953130025208": {
     "nrDoc": 9,
     "descricao": "DROPS POA NORTE HOTEL SPE LTDA - CG",
-    "fantasia": "POA TAIKO",
+    "fantasia": "POA Zona Norte",
     "cidade": "Porto Alegre",
     "cnpj": "44981299000188",
     "banco": "Santander",
@@ -334,7 +334,7 @@ const accountsMap = {
   "0341_8408991902": {
     "nrDoc": 11,
     "descricao": "DROPS PARTICIPAÇÕES SPE LTDA",
-    "fantasia": "DROPS PALHOÇA",
+    "fantasia": "Palhoca",
     "cidade": "Palhoça",
     "cnpj": "35586765000210",
     "banco": "Itaú",
@@ -345,7 +345,7 @@ const accountsMap = {
   "0748_0334010764": {
     "nrDoc": 11,
     "descricao": "DROPS PARTICIPAÇÕES SPE LTDA",
-    "fantasia": "DROPS PALHOÇA",
+    "fantasia": "Palhoca",
     "cidade": "Palhoça",
     "cnpj": "35586765000210",
     "banco": "Sicredi",
@@ -356,7 +356,7 @@ const accountsMap = {
   "0033_0953130028373": {
     "nrDoc": 11,
     "descricao": "DROPS PARTICIPAÇÕES SPE LTDA",
-    "fantasia": "DROPS PALHOÇA",
+    "fantasia": "Palhoca",
     "cidade": "Palhoça",
     "cnpj": "35586765000210",
     "banco": "Santander",
@@ -367,7 +367,7 @@ const accountsMap = {
   "0341_8408987132": {
     "nrDoc": 12,
     "descricao": "DROPS PARTICIPAÇÕES SPE LTDA",
-    "fantasia": "CHAMPAGNE",
+    "fantasia": "Tubarao",
     "cidade": "Tubarão",
     "cnpj": "35586765000300",
     "banco": "Itaú",
@@ -378,7 +378,7 @@ const accountsMap = {
   "0748_0334617267": {
     "nrDoc": 12,
     "descricao": "DROPS PARTICIPAÇÕES SPE LTDA",
-    "fantasia": "CHAMPAGNE",
+    "fantasia": "Tubarao",
     "cidade": "Tubarão",
     "cnpj": "35586765000300",
     "banco": "Sicredi",
@@ -389,7 +389,7 @@ const accountsMap = {
   "0033_0953130029996": {
     "nrDoc": 12,
     "descricao": "DROPS PARTICIPAÇÕES SPE LTDA",
-    "fantasia": "CHAMPAGNE",
+    "fantasia": "Tubarao",
     "cidade": "Tubarão",
     "cnpj": "35586765000300",
     "banco": "Santander",
@@ -532,7 +532,7 @@ const accountsMap = {
   "0341_7197996155": {
     "nrDoc": 17,
     "descricao": "SERRA HOTELARIA SPE LTDA",
-    "fantasia": "CAMELOT (SLeo)",
+    "fantasia": "Camelot",
     "cidade": "São Leopoldo",
     "cnpj": "06077554000335",
     "banco": "Itaú",
@@ -543,7 +543,7 @@ const accountsMap = {
   "0748_0334869824": {
     "nrDoc": 17,
     "descricao": "SERRA HOTELARIA SPE LTDA",
-    "fantasia": "CAMELOT (SLeo)",
+    "fantasia": "Camelot",
     "cidade": "São Leopoldo",
     "cnpj": "06077554000335",
     "banco": "Sicredi",
@@ -554,7 +554,7 @@ const accountsMap = {
   "0033_1227130052953": {
     "nrDoc": 17,
     "descricao": "SERRA HOTELARIA SPE LTDA",
-    "fantasia": "CAMELOT (SLeo)",
+    "fantasia": "Camelot",
     "cidade": "São Leopoldo",
     "cnpj": "06077554000335",
     "banco": "Santander",
@@ -565,7 +565,7 @@ const accountsMap = {
   "0341_7197996148": {
     "nrDoc": 18,
     "descricao": "SERRA HOTELARIA SPE LTDA",
-    "fantasia": "XANGAI (SLeo Express)",
+    "fantasia": "Xangai",
     "cidade": "São Leopoldo",
     "cnpj": "06077554000416",
     "banco": "Itaú",
@@ -576,7 +576,7 @@ const accountsMap = {
   "0748_0334869947": {
     "nrDoc": 18,
     "descricao": "SERRA HOTELARIA SPE LTDA",
-    "fantasia": "XANGAI (SLeo Express)",
+    "fantasia": "Xangai",
     "cidade": "São Leopoldo",
     "cnpj": "06077554000416",
     "banco": "Sicredi",
@@ -587,7 +587,7 @@ const accountsMap = {
   "0033_1227130052946": {
     "nrDoc": 18,
     "descricao": "SERRA HOTELARIA SPE LTDA",
-    "fantasia": "XANGAI (SLeo Express)",
+    "fantasia": "Xangai",
     "cidade": "São Leopoldo",
     "cnpj": "06077554000416",
     "banco": "Santander",
@@ -598,7 +598,7 @@ const accountsMap = {
   "0341_7197996122": {
     "nrDoc": 19,
     "descricao": "SERRA HOTELARIA SPE LTDA",
-    "fantasia": "BAVIERA",
+    "fantasia": "Novo Hamburgo",
     "cidade": "Novo Hamburgo",
     "cnpj": "06077554000505",
     "banco": "Itaú",
@@ -609,7 +609,7 @@ const accountsMap = {
   "0748_0334890277": {
     "nrDoc": 19,
     "descricao": "SERRA HOTELARIA SPE LTDA",
-    "fantasia": "BAVIERA",
+    "fantasia": "Novo Hamburgo",
     "cidade": "Novo Hamburgo",
     "cnpj": "06077554000505",
     "banco": "Sicredi",
@@ -620,7 +620,7 @@ const accountsMap = {
   "0033_1227130052960": {
     "nrDoc": 19,
     "descricao": "SERRA HOTELARIA SPE LTDA",
-    "fantasia": "BAVIERA",
+    "fantasia": "Novo Hamburgo",
     "cidade": "Novo Hamburgo",
     "cnpj": "06077554000505",
     "banco": "Santander",
@@ -631,7 +631,7 @@ const accountsMap = {
   "0341_8408979741": {
     "nrDoc": 20,
     "descricao": "HORTEL HOTELARIA LTDA",
-    "fantasia": "DROPS RIBEIRAO PRETO",
+    "fantasia": "Ribeirao Preto",
     "cidade": "Ribeirão Preto",
     "cnpj": "53729935000250",
     "banco": "Itaú",
@@ -642,7 +642,7 @@ const accountsMap = {
   "0748_0334671331": {
     "nrDoc": 20,
     "descricao": "HORTEL HOTELARIA LTDA",
-    "fantasia": "DROPS RIBEIRAO PRETO",
+    "fantasia": "Ribeirao Preto",
     "cidade": "Ribeirão Preto",
     "cnpj": "53729935000250",
     "banco": "Sicredi",
@@ -653,7 +653,7 @@ const accountsMap = {
   "0033_3131130120018": {
     "nrDoc": 20,
     "descricao": "HORTEL HOTELARIA LTDA",
-    "fantasia": "DROPS RIBEIRAO PRETO",
+    "fantasia": "Ribeirao Preto",
     "cidade": "Ribeirão Preto",
     "cnpj": "53729935000250",
     "banco": "Santander",
@@ -664,7 +664,7 @@ const accountsMap = {
   "0341_8408978461": {
     "nrDoc": 21,
     "descricao": "DROPS RS SPE LTDA",
-    "fantasia": "GRAND DUBAI",
+    "fantasia": "Caxias do Sul",
     "cidade": "Caxias do Sul",
     "cnpj": "44981299000269",
     "banco": "Itaú",
@@ -675,7 +675,7 @@ const accountsMap = {
   "0748_0334845185": {
     "nrDoc": 21,
     "descricao": "DROPS RS SPE LTDA",
-    "fantasia": "GRAND DUBAI",
+    "fantasia": "Caxias do Sul",
     "cidade": "Caxias do Sul",
     "cnpj": "44981299000269",
     "banco": "Sicredi",
@@ -686,7 +686,7 @@ const accountsMap = {
   "0033_3131130120678": {
     "nrDoc": 21,
     "descricao": "DROPS RS SPE LTDA",
-    "fantasia": "GRAND DUBAI",
+    "fantasia": "Caxias do Sul",
     "cidade": "Caxias do Sul",
     "cnpj": "44981299000269",
     "banco": "Santander",
@@ -925,6 +925,205 @@ const accountsMap = {
     "bankid": "0748",
     "acctid": "4340000000050976",
     "contaOriginal": "0334 05097-6"
+  }
+,
+  "0748_4340000000147714": {
+    "nrDoc": 901,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Campinas",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000147714",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000560288": {
+    "nrDoc": 902,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "ZEAX",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000560288",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000671331": {
+    "nrDoc": 903,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Ribeirao Preto",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000671331",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000042131": {
+    "nrDoc": 904,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "VILLAGES",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000042131",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000658992": {
+    "nrDoc": 905,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Goiania",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000658992",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000845185": {
+    "nrDoc": 906,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Caxias do Sul",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000845185",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000771358": {
+    "nrDoc": 907,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "POA ZONA SUL",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000771358",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000003736": {
+    "nrDoc": 908,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Brasilia",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000003736",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000869947": {
+    "nrDoc": 909,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Xangai",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000869947",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000617267": {
+    "nrDoc": 910,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Tubarao",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000617267",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000010764": {
+    "nrDoc": 911,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Palhoca",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000010764",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000481434": {
+    "nrDoc": 912,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Porto Alegre",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000481434",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000670019": {
+    "nrDoc": 913,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "ZAYA",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000670019",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000890277": {
+    "nrDoc": 914,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Novo Hamburgo",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000890277",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000528701": {
+    "nrDoc": 915,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "RV Bangalo",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000528701",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000482755": {
+    "nrDoc": 916,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "POA Zona Norte",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000482755",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000869824": {
+    "nrDoc": 917,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Camelot",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000869824",
+    "contaOriginal": "A IDENTIFICAR"
+  },
+  "0748_4340000000089818": {
+    "nrDoc": 918,
+    "descricao": "SP HOTELARIA SPE LTDA",
+    "fantasia": "Bangalo",
+    "cidade": "A IDENTIFICAR",
+    "cnpj": "00000000000000",
+    "banco": "Sicredi",
+    "bankid": "0748",
+    "acctid": "4340000000089818",
+    "contaOriginal": "A IDENTIFICAR"
   }
 };
 
