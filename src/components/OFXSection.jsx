@@ -147,95 +147,117 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     });
   };
 
-  // Função para sugerir transferências (SEM aporte necessário)
-  const sugerirTransferencias = (contas) => {
-    const contasNegativas = contas.filter(c => c.ficaNegativo);
-    const contasPositivas = contas.filter(c => !c.ficaNegativo && c.saldoFinal > 0);
-    if (contasNegativas.length === 0) return [];
-    const sugestoes = [];
-    contasNegativas.forEach(contaNegativa => {
-      const raizNegativa = getRaizCNPJ(contaNegativa.summary.cnpj);
-      const deficit = Math.abs(contaNegativa.saldoFinal);
-      let valorRestante = deficit;
-      const contasMesmaUnidade = contasPositivas.filter(
-        c => c.summary.cnpj === contaNegativa.summary.cnpj && c !== contaNegativa
-      );
-      contasMesmaUnidade.forEach(origem => {
-        if (valorRestante <= 0) return;
-        const valorTransferencia = Math.min(valorRestante, origem.saldoFinal);
-        if (valorTransferencia > 0) {
-          sugestoes.push({
-            de: origem.summary.fantasia, deBanco: origem.summary.banco,
-            para: contaNegativa.summary.fantasia, paraBanco: contaNegativa.summary.banco,
-            valor: valorTransferencia, tipo: 'Mesma Unidade', prioridade: 1,
-            contaDestinoKey: `${contaNegativa.summary.fantasia}_${contaNegativa.summary.banco}`
-          });
-          valorRestante -= valorTransferencia;
-        }
-      });
-      if (valorRestante > 0 && raizNegativa) {
-        const contasMesmaRaiz = contasPositivas.filter(c => {
-          const raizOrigem = getRaizCNPJ(c.summary.cnpj);
-          return raizOrigem === raizNegativa && c.summary.cnpj !== contaNegativa.summary.cnpj;
-        });
-        contasMesmaRaiz.forEach(origem => {
-          if (valorRestante <= 0) return;
-          const valorTransferencia = Math.min(valorRestante, origem.saldoFinal * 0.8);
-          if (valorTransferencia >= 100) {
-            sugestoes.push({
-              de: origem.summary.fantasia, deBanco: origem.summary.banco,
-              para: contaNegativa.summary.fantasia, paraBanco: contaNegativa.summary.banco,
-              valor: valorTransferencia, tipo: 'Entre Unidades (mesma raiz CNPJ)', prioridade: 2,
-              contaDestinoKey: `${contaNegativa.summary.fantasia}_${contaNegativa.summary.banco}`
-            });
-            valorRestante -= valorTransferencia;
-          }
-        });
-      }
-    });
-    return sugestoes.sort((a, b) => a.prioridade - b.prioridade);
-  };
-  
-  // Calcular aportes necessários após transferências confirmadas
-  const calcularAportesNecessarios = (contas, sugestoesOriginais) => {
-    // Calcular saldos ajustados por conta
+  // Função para calcular TODAS as sugestões dinamicamente baseado nas confirmadas
+  const calcularSugestoesDinamicas = (contas, transferenciasConfirmadas) => {
+    // 1. Calcular saldos atuais considerando transferências já confirmadas
     const saldosPorConta = {};
     contas.forEach(c => {
       const key = `${c.summary.fantasia}_${c.summary.banco}`;
-      saldosPorConta[key] = c.saldoFinal;
+      saldosPorConta[key] = {
+        saldo: c.saldoFinal,
+        fantasia: c.summary.fantasia,
+        banco: c.summary.banco,
+        cnpj: c.summary.cnpj
+      };
     });
     
-    // Aplicar transferências confirmadas
-    sugestoesOriginais.forEach((s, i) => {
-      if (transferenciasConfirmadas.has(i)) {
-        const keyOrigem = `${s.de}_${s.deBanco}`;
-        const keyDestino = `${s.para}_${s.paraBanco}`;
-        saldosPorConta[keyOrigem] = (saldosPorConta[keyOrigem] || 0) - s.valor;
-        saldosPorConta[keyDestino] = (saldosPorConta[keyDestino] || 0) + s.valor;
-      }
-    });
-    
-    // Calcular aportes necessários para contas ainda negativas
-    const aportes = [];
-    Object.entries(saldosPorConta).forEach(([key, saldo]) => {
-      if (saldo < 0) {
-        const [fantasia, banco] = key.split('_');
-        const valorNecessario = Math.abs(saldo);
-        if (valorNecessario > 100) {
-          aportes.push({
-            de: 'APORTE EXTERNO',
-            deBanco: '',
-            para: fantasia,
-            paraBanco: banco,
-            valor: valorNecessario,
-            tipo: 'Aporte Necessário',
-            prioridade: 3
-          });
+    // Aplicar transferências confirmadas aos saldos
+    transferenciasConfirmadas.forEach(transferencia => {
+      if (transferencia.prioridade !== 3) { // Ignorar aportes externos
+        const keyOrigem = `${transferencia.de}_${transferencia.deBanco}`;
+        const keyDestino = `${transferencia.para}_${transferencia.paraBanco}`;
+        if (saldosPorConta[keyOrigem]) {
+          saldosPorConta[keyOrigem].saldo -= transferencia.valor;
+        }
+        if (saldosPorConta[keyDestino]) {
+          saldosPorConta[keyDestino].saldo += transferencia.valor;
         }
       }
     });
     
-    return aportes;
+    // 2. Identificar contas negativas e positivas COM SALDOS ATUALIZADOS
+    const contasNegativas = Object.entries(saldosPorConta)
+      .filter(([_, info]) => info.saldo < 0)
+      .map(([key, info]) => ({ key, ...info, deficit: Math.abs(info.saldo) }));
+    
+    const contasPositivas = Object.entries(saldosPorConta)
+      .filter(([_, info]) => info.saldo > 0)
+      .map(([key, info]) => ({ key, ...info }));
+    
+    if (contasNegativas.length === 0) return [];
+    
+    // 3. Gerar novas sugestões baseadas nos saldos atuais
+    const novasSugestoes = [];
+    
+    contasNegativas.forEach(contaNegativa => {
+      const raizNegativa = getRaizCNPJ(contaNegativa.cnpj);
+      let valorRestante = contaNegativa.deficit;
+      
+      // Prioridade 1: Mesma Unidade (CNPJ completo igual)
+      const contasMesmaUnidade = contasPositivas.filter(
+        origem => origem.cnpj === contaNegativa.cnpj && origem.key !== contaNegativa.key
+      );
+      
+      contasMesmaUnidade.forEach(origem => {
+        if (valorRestante <= 0 || origem.saldo <= 0) return;
+        const valorTransferencia = Math.min(valorRestante, origem.saldo);
+        if (valorTransferencia > 0) {
+          novasSugestoes.push({
+            de: origem.fantasia,
+            deBanco: origem.banco,
+            para: contaNegativa.fantasia,
+            paraBanco: contaNegativa.banco,
+            valor: valorTransferencia,
+            tipo: 'Mesma Unidade',
+            prioridade: 1
+          });
+          valorRestante -= valorTransferencia;
+          origem.saldo -= valorTransferencia; // Atualizar saldo disponível
+        }
+      });
+      
+      // Prioridade 2: Entre Unidades (mesma raiz CNPJ)
+      if (valorRestante > 0 && raizNegativa) {
+        const contasMesmaRaiz = contasPositivas.filter(origem => {
+          const raizOrigem = getRaizCNPJ(origem.cnpj);
+          return raizOrigem === raizNegativa && origem.cnpj !== contaNegativa.cnpj;
+        });
+        
+        contasMesmaRaiz.forEach(origem => {
+          if (valorRestante <= 0 || origem.saldo <= 0) return;
+          const valorDisponivel = origem.saldo * 0.8; // Usar até 80% do saldo
+          const valorTransferencia = Math.min(valorRestante, valorDisponivel);
+          if (valorTransferencia >= 100) {
+            novasSugestoes.push({
+              de: origem.fantasia,
+              deBanco: origem.banco,
+              para: contaNegativa.fantasia,
+              paraBanco: contaNegativa.banco,
+              valor: valorTransferencia,
+              tipo: 'Entre Unidades (mesma raiz CNPJ)',
+              prioridade: 2
+            });
+            valorRestante -= valorTransferencia;
+            origem.saldo -= valorTransferencia; // Atualizar saldo disponível
+          }
+        });
+      }
+      
+      // Prioridade 3: Aporte Externo Necessário
+      if (valorRestante > 100) {
+        novasSugestoes.push({
+          de: 'APORTE EXTERNO',
+          deBanco: '',
+          para: contaNegativa.fantasia,
+          paraBanco: contaNegativa.banco,
+          valor: valorRestante,
+          tipo: 'Aporte Necessário',
+          prioridade: 3
+        });
+      }
+    });
+    
+    return novasSugestoes.sort((a, b) => a.prioridade - b.prioridade);
   };
 
   const handleFiles = useCallback(async (e) => {
@@ -304,9 +326,16 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
 
   const fmt = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const sugestoesBase = results ? sugerirTransferencias(results.results) : [];
-  const aportesNecessarios = results ? calcularAportesNecessarios(results.results, sugestoesBase) : [];
-  const sugestoesTransferencia = [...sugestoesBase, ...aportesNecessarios];
+  // Calcular sugestões considerando transferências já confirmadas
+  const transferenciasConfirmadasArray = results ? 
+    Array.from(transferenciasConfirmadas).map(idx => {
+      // Pegar sugestões iniciais para as confirmadas
+      const sugestoesIniciais = calcularSugestoesDinamicas(results.results, []);
+      return sugestoesIniciais[idx];
+    }).filter(Boolean) : [];
+  
+  const sugestoesTransferencia = results ? 
+    calcularSugestoesDinamicas(results.results, transferenciasConfirmadasArray) : [];
   
   const resultadosComAjustes = results ? calcularSaldosComTransferencias(results.results, sugestoesTransferencia) : [];
   
