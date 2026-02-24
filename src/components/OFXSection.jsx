@@ -17,6 +17,27 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     // Remover "Drops " ou "DROPS " do início (case insensitive)
     return nome.replace(/^drops\\s+/i, '').trim();
   };
+  
+  // Mapear nomes equivalentes (OFX → Excel)
+  const mapearNomeFilial = (nome) => {
+    if (!nome) return nome;
+    
+    // Normalizar primeiro (remover "Drops ")
+    let nomeNormalizado = normalizarNomeFilial(nome);
+    
+    // Mapeamento de nomes especiais
+    const mapeamentos = {
+      'barretos matriz': 'barretos',
+      'barretos express': 'barretos express',
+      'drops rio preto': 'rio preto',
+      'rio preto': 'rio preto',
+      'vale dos sinos': 'vale dos sinos',
+      'araraquara': 'araraquara'
+    };
+    
+    const nomeMinusculo = nomeNormalizado.toLowerCase();
+    return mapeamentos[nomeMinusculo] || nomeNormalizado;
+  };
 
   // Função auxiliar para buscar campo
   const buscarCampo = (item, ...nomes) => {
