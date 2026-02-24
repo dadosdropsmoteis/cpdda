@@ -386,6 +386,19 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     const file = event.target.files?.[0];
     if (!file) return;
     
+    // Validar se há dados do Excel
+    if (!dados || dados.length === 0) {
+      alert('⚠️ Por favor, faça upload do arquivo Excel de despesas primeiro!');
+      event.target.value = '';
+      return;
+    }
+    
+    if (!datasVisiveis || datasVisiveis.length === 0) {
+      alert('⚠️ Nenhuma data visível encontrada. Verifique o arquivo Excel.');
+      event.target.value = '';
+      return;
+    }
+    
     try {
       setLoading(true);
       const text = await file.text();
