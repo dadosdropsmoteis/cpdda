@@ -138,14 +138,10 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       const filialRaw = buscarCampo(item, 'Minha Empresa (Nome Fantasia)', 'Filial');
       const filialMapeada = mapearNomeFilial(filialRaw);
       const contaCorrente = buscarCampo(item, 'Conta Corrente');
-      const tipoContaCorrente = buscarCampo(item, 'Tipo da Conta Corrente');
       const dataVencimentoRaw = buscarCampo(item, 'Data de Vencimento', 'Vencimento');
       const dataVencimento = normalizarData(dataVencimentoRaw);
       const valorRaw = buscarCampo(item, 'Valor da Conta', 'Valor');
       const valor = Math.abs(parsearValor(valorRaw)); // Usar valor absoluto
-      
-      // FILTRO CRÍTICO: Apenas Conta Corrente
-      if (tipoContaCorrente !== 'Conta Corrente') return;
       
       // Verificar se a Filial corresponde (case insensitive e mapeada)
       const filialMatch = filialMapeada && filialMapeada.toLowerCase() === fantasiaMapeada.toLowerCase();
@@ -316,55 +312,22 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
           }
         });
       }
+      
+      // Prioridade 3: Aporte Externo Necessário
+      if (valorRestante > 100) {
+        novasSugestoes.push({
+          de: 'APORTE EXTERNO',
+          deBanco: '',
+          para: contaNegativa.fantasia,
+          paraBanco: contaNegativa.banco,
+          valor: valorRestante,
+          tipo: 'Aporte Necessário',
+          prioridade: 3
+        });
+      }
     });
     
     return novasSugestoes.sort((a, b) => a.prioridade - b.prioridade);
-  };
-  
-  // Calcular aportes necessários APENAS com base nas transferências CONFIRMADAS
-  const calcularAportesNecessarios = (contas, transferenciasConfirmadas) => {
-    // Calcular saldos após transferências confirmadas
-    const saldosPorConta = {};
-    contas.forEach(c => {
-      const key = `${c.summary.fantasia}_${c.summary.banco}`;
-      saldosPorConta[key] = c.saldoFinal;
-    });
-    
-    // Aplicar APENAS transferências confirmadas
-    transferenciasConfirmadas.forEach(t => {
-      if (t.prioridade !== 3) { // Ignorar aportes
-        const keyOrigem = `${t.de}_${t.deBanco}`;
-        const keyDestino = `${t.para}_${t.paraBanco}`;
-        if (saldosPorConta[keyOrigem] !== undefined) {
-          saldosPorConta[keyOrigem] -= t.valor;
-        }
-        if (saldosPorConta[keyDestino] !== undefined) {
-          saldosPorConta[keyDestino] += t.valor;
-        }
-      }
-    });
-    
-    // Gerar aportes para contas ainda negativas
-    const aportes = [];
-    Object.entries(saldosPorConta).forEach(([key, saldo]) => {
-      if (saldo < 0) {
-        const [fantasia, banco] = key.split('_');
-        const valorNecessario = Math.abs(saldo);
-        if (valorNecessario > 100) {
-          aportes.push({
-            de: 'APORTE EXTERNO',
-            deBanco: '',
-            para: fantasia,
-            paraBanco: banco,
-            valor: valorNecessario,
-            tipo: 'Aporte Necessário',
-            prioridade: 3
-          });
-        }
-      }
-    });
-    
-    return aportes;
   };
 
   const handleFiles = useCallback(async (e) => {
@@ -375,110 +338,6 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     try {
       const fileContents = await Promise.all(files.map(readOFXFile));
       const data = parseMultipleOFX(fileContents, accountsMap);
-      
-      // Criar mapa de CNPJs por filial (das contas que têm OFX)
-      const cnpjPorFilial = {};
-      data.results.forEach(conta => {
-        const filial = conta.summary.fantasia.toLowerCase();
-        if (conta.summary.cnpj && !cnpjPorFilial[filial]) {
-          cnpjPorFilial[filial] = conta.summary.cnpj;
-        }
-      });
-      
-      // Função para buscar CNPJ da filial
-      const buscarCNPJFilial = (nomeFilial) => {
-        // Tentar do mapa de contas OFX
-        if (cnpjPorFilial[nomeFilial.toLowerCase()]) {
-          return cnpjPorFilial[nomeFilial.toLowerCase()];
-        }
-        
-        // Buscar do accountsMap - procurar qualquer conta com essa fantasia
-        const filialNormalizada = nomeFilial.toLowerCase();
-        for (const [key, info] of Object.entries(accountsMap)) {
-          if (info.fantasia && info.fantasia.toLowerCase() === filialNormalizada) {
-            return info.cnpj;
-          }
-        }
-        
-        return null;
-      };
-      
-      // Identificar contas com despesas no Excel
-      const contasComDespesas = new Map(); // key: filial_banco
-      dados.forEach(item => {
-        const filialRaw = buscarCampo(item, 'Minha Empresa (Nome Fantasia)', 'Filial');
-        const filial = mapearNomeFilial(filialRaw);
-        const contaCorrente = buscarCampo(item, 'Conta Corrente');
-        const tipoContaCorrente = buscarCampo(item, 'Tipo da Conta Corrente');
-        const dataVencimentoRaw = buscarCampo(item, 'Data de Vencimento', 'Vencimento');
-        const dataVencimento = normalizarData(dataVencimentoRaw);
-        
-        // FILTRO CRÍTICO: Apenas Conta Corrente
-        if (filial && contaCorrente && tipoContaCorrente === 'Conta Corrente' && dataVencimento && datasVisiveis.includes(dataVencimento)) {
-          const key = `${filial.toLowerCase()}_${contaCorrente.toLowerCase()}`;
-          if (!contasComDespesas.has(key)) {
-            const cnpjReal = buscarCNPJFilial(filial);
-            contasComDespesas.set(key, {
-              filial,
-              contaCorrente,
-              cnpj: cnpjReal
-            });
-          }
-        }
-      });
-      
-      // Identificar contas que já têm OFX
-      const contasComOFX = new Set();
-      data.results.forEach(conta => {
-        const filial = conta.summary.fantasia.toLowerCase();
-        const banco = conta.summary.banco.toLowerCase();
-        contasComOFX.add(`${filial}_${banco}`);
-        
-        // Adicionar variação para Santander
-        if (banco.includes('santander')) {
-          contasComOFX.add(`${filial}_@santander`);
-        }
-      });
-      
-      // Criar contas virtuais para as que têm despesas mas não têm OFX
-      const contasVirtuais = [];
-      contasComDespesas.forEach((info, key) => {
-        if (!contasComOFX.has(key)) {
-          // Verificar se não é Santander/Sicredi/Itaú (esses devem ter OFX)
-          const conta = info.contaCorrente.toLowerCase();
-          const isSantander = conta.includes('santander');
-          const isSicredi = conta.includes('sicredi');
-          const isItau = conta.includes('itau') || conta.includes('itaú');
-          
-          if (!isSantander && !isSicredi && !isItau) {
-            // Extrair nome do banco
-            let nomeBanco = info.contaCorrente.replace('@', '').trim();
-            nomeBanco = nomeBanco.charAt(0).toUpperCase() + nomeBanco.slice(1);
-            
-            // Usar CNPJ real da filial
-            const cnpjReal = info.cnpj || '00000000000000';
-            
-            contasVirtuais.push({
-              summary: {
-                fantasia: info.filial,
-                banco: nomeBanco,
-                conta: 'VIRTUAL',
-                cnpj: cnpjReal, // CNPJ REAL da filial
-                bankName: nomeBanco
-              },
-              saldoInicial: 0,
-              ficaNegativo: false,
-              projecaoDiaria: [],
-              isVirtual: true
-            });
-          }
-        }
-      });
-      
-      console.log(`📊 Contas virtuais criadas: ${contasVirtuais.length}`);
-      if (contasVirtuais.length > 0) {
-        console.log('Contas virtuais:', contasVirtuais.map(c => `${c.summary.fantasia} (${c.summary.banco}) - CNPJ: ${c.summary.cnpj}`));
-      }
       
       // Calcular projeções cruzando com despesas do dashboard
       const resultadosComProjecao = data.results.map(conta => {
@@ -518,47 +377,9 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         };
       });
 
-      // Calcular projeções para contas virtuais
-      const contasVirtuaisComProjecao = contasVirtuais.map(contaVirtual => {
-        const despesasPorData = calcularDespesasPorConta(
-          contaVirtual.summary.fantasia, 
-          contaVirtual.summary.banco
-        );
-
-        const datasOrdenadas = [...datasVisiveis].sort((a, b) => {
-          const [diaA, mesA, anoA] = a.split('/');
-          const [diaB, mesB, anoB] = b.split('/');
-          return new Date(anoA, mesA - 1, diaA) - new Date(anoB, mesB - 1, diaB);
-        });
-
-        const projecaoDiaria = [];
-        let saldoAcumulado = 0;
-
-        datasOrdenadas.forEach(data => {
-          const despesaDia = despesasPorData[data] || 0;
-          saldoAcumulado -= despesaDia;
-          projecaoDiaria.push({
-            data,
-            despesas: despesaDia,
-            saldoAposLancamentos: saldoAcumulado
-          });
-        });
-
-        const totalDespesas = Object.values(despesasPorData).reduce((a, b) => a + b, 0);
-        const saldoFinal = -totalDespesas;
-
-        return {
-          ...contaVirtual,
-          despesasPrevistas: totalDespesas,
-          saldoFinal,
-          ficaNegativo: saldoFinal < 0,
-          projecaoDiaria
-        };
-      });
-      
       setResults({
         ...data,
-        results: [...resultadosComProjecao, ...contasVirtuaisComProjecao]
+        results: resultadosComProjecao
       });
       setDetalheAberto(null);
     } catch (err) {
@@ -586,18 +407,12 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       transferenciasConfirmadas
     );
     
-    // Calcular aportes necessários baseado APENAS nas confirmadas
-    const aportes = calcularAportesNecessarios(
-      results.results,
-      transferenciasConfirmadas
-    );
-    
-    // Se não há confirmadas, retornar novas + aportes
+    // Se não há confirmadas, retornar só as novas
     if (transferenciasConfirmadas.length === 0) {
-      return [...novasNaoConfirmadas, ...aportes];
+      return novasNaoConfirmadas;
     }
     
-    // Combinar: confirmadas nas posições originais + novas no final + aportes
+    // Combinar: confirmadas nas posições originais + novas no final
     const mapa = new Map();
     
     // Adicionar confirmadas
@@ -613,15 +428,6 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         proximoIndice++;
       }
       mapa.set(proximoIndice, { ...sug, confirmada: false });
-      proximoIndice++;
-    });
-    
-    // Adicionar aportes no final
-    aportes.forEach(aporte => {
-      while (mapa.has(proximoIndice)) {
-        proximoIndice++;
-      }
-      mapa.set(proximoIndice, { ...aporte, confirmada: false });
       proximoIndice++;
     });
     
