@@ -14,9 +14,10 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   const [novaContaForm, setNovaContaForm] = useState({ filial: '', banco: '', saldoInicial: '0' });
   const [modalSantanderAPI, setModalSantanderAPI] = useState(false);
   const [santanderConfig, setSantanderConfig] = useState({
-    apiKey: localStorage.getItem('santander_api_key') || '',
-    accountNumbers: '',
-    salvarChave: false
+    clientId: localStorage.getItem('santander_client_id') || '',
+    clientSecret: localStorage.getItem('santander_client_secret') || '',
+    accountNumber: '',
+    salvarCredenciais: false
   });
   const [loadingSantander, setLoadingSantander] = useState(false);
 
@@ -198,64 +199,86 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     return limpo.substring(0, 8);
   };
 
-  // Buscar saldos via API Santander
+  // Buscar saldos via API Santander (com OAuth)
   const buscarSaldosSantander = async () => {
-    if (!santanderConfig.apiKey) {
-      alert('Por favor, insira a chave API do Santander');
+    if (!santanderConfig.clientId || !santanderConfig.clientSecret) {
+      alert('Por favor, insira o Client ID e Client Secret do Santander');
+      return;
+    }
+    
+    if (!santanderConfig.accountNumber) {
+      alert('Por favor, insira o número da conta');
       return;
     }
     
     setLoadingSantander(true);
     
     try {
-      // Salvar chave se solicitado
-      if (santanderConfig.salvarChave) {
-        localStorage.setItem('santander_api_key', santanderConfig.apiKey);
+      // Salvar credenciais se solicitado
+      if (santanderConfig.salvarCredenciais) {
+        localStorage.setItem('santander_client_id', santanderConfig.clientId);
+        localStorage.setItem('santander_client_secret', santanderConfig.clientSecret);
       } else {
-        localStorage.removeItem('santander_api_key');
+        localStorage.removeItem('santander_client_id');
+        localStorage.removeItem('santander_client_secret');
       }
       
-      // Processar números de contas (separados por vírgula ou linha)
-      const contas = santanderConfig.accountNumbers
-        .split(/[,\n]/)
-        .map(c => c.trim())
-        .filter(c => c);
+      console.log('🔐 Passo 1: Obtendo Access Token...');
       
-      if (contas.length === 0) {
-        alert('Por favor, insira pelo menos um número de conta');
+      // Passo 1: Obter Access Token via OAuth
+      const credentials = btoa(`${santanderConfig.clientId}:${santanderConfig.clientSecret}`);
+      
+      const tokenResponse = await fetch('https://trust-open.api.santander.com.br/auth/oauth/v2/token', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'grant_type=client_credentials'
+      });
+      
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error('Erro OAuth:', errorText);
+        alert(`Erro ao obter token: ${tokenResponse.status} - Verifique Client ID e Secret`);
         setLoadingSantander(false);
         return;
       }
       
-      // Fazer requisições para cada conta
-      const resultadosAPI = [];
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
       
-      for (const accountNumber of contas) {
-        try {
-          const response = await fetch('https://api-customer.santander.com.br/balance_statement/v1/accounts/balance', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Application-Key': santanderConfig.apiKey,
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              accountNumber: accountNumber
-            })
-          });
-          
-          if (!response.ok) {
-            console.error(`Erro ao buscar conta ${accountNumber}:`, response.status);
-            continue;
-          }
-          
-          const data = await response.json();
-          resultadosAPI.push({ accountNumber, data });
-          
-        } catch (error) {
-          console.error(`Erro ao buscar conta ${accountNumber}:`, error);
-        }
+      console.log('✅ Access Token obtido com sucesso!');
+      console.log('🏦 Passo 2: Buscando saldo da conta...');
+      
+      // Passo 2: Buscar saldo usando o Access Token
+      const balanceResponse = await fetch('https://api-customer.santander.com.br/balance_statement/v1/accounts/balance', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          accountNumber: santanderConfig.accountNumber
+        })
+      });
+      
+      if (!balanceResponse.ok) {
+        const errorText = await balanceResponse.text();
+        console.error('Erro ao buscar saldo:', errorText);
+        alert(`Erro ao buscar saldo: ${balanceResponse.status}`);
+        setLoadingSantander(false);
+        return;
       }
+      
+      const balanceData = await balanceResponse.json();
+      console.log('✅ Saldo obtido:', balanceData);
+      
+      const resultadosAPI = [{ 
+        accountNumber: santanderConfig.accountNumber, 
+        data: balanceData 
+      }];
       
       if (resultadosAPI.length === 0) {
         alert('Nenhuma conta foi carregada com sucesso. Verifique a chave API e números de conta.');
@@ -1184,54 +1207,77 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       {/* Modal API Santander */}
       {modalSantanderAPI && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold mb-4 text-red-600">🏦 API Santander</h3>
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold mb-4 text-red-600">🏦 API Santander (OAuth 2.0)</h3>
             
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chave API (X-Application-Key)
+                  Client ID
                 </label>
                 <input
-                  type="password"
-                  value={santanderConfig.apiKey}
-                  onChange={(e) => setSantanderConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                  placeholder="Digite a chave API"
+                  type="text"
+                  value={santanderConfig.clientId}
+                  onChange={(e) => setSantanderConfig(prev => ({ ...prev, clientId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 font-mono text-sm"
+                  placeholder="Ex: a1b2c3d4..."
                 />
-                <div className="mt-2">
-                  <label className="flex items-center gap-2 text-sm text-gray-600">
-                    <input
-                      type="checkbox"
-                      checked={santanderConfig.salvarChave}
-                      onChange={(e) => setSantanderConfig(prev => ({ ...prev, salvarChave: e.target.checked }))}
-                      className="rounded"
-                    />
-                    Salvar chave localmente (apenas neste navegador)
-                  </label>
-                </div>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Números das Contas
+                  Client Secret
                 </label>
-                <textarea
-                  value={santanderConfig.accountNumbers}
-                  onChange={(e) => setSantanderConfig(prev => ({ ...prev, accountNumbers: e.target.value }))}
+                <input
+                  type="password"
+                  value={santanderConfig.clientSecret}
+                  onChange={(e) => setSantanderConfig(prev => ({ ...prev, clientSecret: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 font-mono text-sm"
+                  placeholder="Digite o client secret"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Número da Conta (teste)
+                </label>
+                <input
+                  type="text"
+                  value={santanderConfig.accountNumber}
+                  onChange={(e) => setSantanderConfig(prev => ({ ...prev, accountNumber: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                  placeholder="Ex: 0953130019502, 0953130030154"
-                  rows={3}
+                  placeholder="Ex: 0953130019502"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Separe múltiplas contas por vírgula ou quebra de linha
+                  Apenas uma conta para teste inicial
+                </p>
+              </div>
+              
+              <div className="mt-2">
+                <label className="flex items-center gap-2 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={santanderConfig.salvarCredenciais}
+                    onChange={(e) => setSantanderConfig(prev => ({ ...prev, salvarCredenciais: e.target.checked }))}
+                    className="rounded"
+                  />
+                  Salvar credenciais localmente (apenas neste navegador)
+                </label>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800">
+                  ℹ️ <strong>Fluxo OAuth 2.0:</strong>
+                  <br/>1. Obtém Access Token usando Client ID/Secret
+                  <br/>2. Usa o token para buscar saldo da conta
+                  <br/>3. Integra automaticamente com o dashboard
                 </p>
               </div>
               
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-xs text-yellow-800">
-                  ⚠️ <strong>Importante:</strong> A chave API será enviada diretamente do seu navegador para a API do Santander. 
-                  Para maior segurança, considere usar um proxy backend.
+                  ⚠️ <strong>Teste:</strong> Esta é uma implementação frontend para testes. 
+                  Para produção, recomendamos criar um backend proxy.
                 </p>
               </div>
             </div>
