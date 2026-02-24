@@ -208,74 +208,57 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     setLoadingSantander(true);
     
     try {
-      // Salvar credenciais se solicitado
-      if (santanderConfig.salvarCredenciais) {
-        localStorage.setItem('santander_client_id', santanderConfig.clientId);
-        localStorage.setItem('santander_client_secret', santanderConfig.clientSecret);
-      } else {
-        localStorage.removeItem('santander_client_id');
-        localStorage.removeItem('santander_client_secret');
-      }
+      console.log(`🏦 Buscando saldos para ${santanderConfig.filial}...`);
+      console.log('📍 URL:', window.location.origin + '/api/santander');
       
-      console.log('🔐 Passo 1: Obtendo Access Token...');
-      
-      // Passo 1: Obter Access Token via OAuth
-      const credentials = btoa(`${santanderConfig.clientId}:${santanderConfig.clientSecret}`);
-      
-      const tokenResponse = await fetch('https://trust-open.api.santander.com.br/auth/oauth/v2/token', {
+      // Chamar backend serverless
+      const response = await fetch('/api/santander', {
         method: 'POST',
         headers: {
-          'Authorization': `Basic ${credentials}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: 'grant_type=client_credentials'
-      });
-      
-      if (!tokenResponse.ok) {
-        const errorText = await tokenResponse.text();
-        console.error('Erro OAuth:', errorText);
-        alert(`Erro ao obter token: ${tokenResponse.status} - Verifique Client ID e Secret`);
-        setLoadingSantander(false);
-        return;
-      }
-      
-      const tokenData = await tokenResponse.json();
-      const accessToken = tokenData.access_token;
-      
-      console.log('✅ Access Token obtido com sucesso!');
-      console.log('🏦 Passo 2: Buscando saldo da conta...');
-      
-      // Passo 2: Buscar saldo usando o Access Token
-      const balanceResponse = await fetch('https://api-customer.santander.com.br/balance_statement/v1/accounts/balance', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          accountNumber: santanderConfig.accountNumber
+          filial: santanderConfig.filial,
+          accountNumber: santanderConfig.accountNumber || undefined
         })
       });
       
-      if (!balanceResponse.ok) {
-        const errorText = await balanceResponse.text();
-        console.error('Erro ao buscar saldo:', errorText);
-        alert(`Erro ao buscar saldo: ${balanceResponse.status}`);
+      console.log('📡 Status da resposta:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Erro da API:', errorData);
+        
+        if (errorData.filiaisDisponiveis) {
+          setFiliaisDisponiveis(errorData.filiaisDisponiveis);
+          alert(`Filial não encontrada. Filiais disponíveis: ${errorData.filiaisDisponiveis.join(', ')}`);
+        } else {
+          alert(`Erro: ${errorData.error || 'Erro desconhecido'}\n\nDetalhes: ${errorData.message || ''}`);
+        }
+        
         setLoadingSantander(false);
         return;
       }
       
-      const balanceData = await balanceResponse.json();
-      console.log('✅ Saldo obtido:', balanceData);
+      const apiResponse = await response.json();
+      console.log('✅ Resposta recebida:', apiResponse);
       
-      const resultadosAPI = [{ 
-        accountNumber: santanderConfig.accountNumber, 
-        data: balanceData 
-      }];
+      if (!apiResponse.success) {
+        alert('Erro ao buscar saldos');
+        setLoadingSantander(false);
+        return;
+      }
+      
+      // Processar resultados
+      const resultadosAPI = apiResponse.results
+        .filter(r => r.success)
+        .map(r => ({
+          accountNumber: r.accountNumber,
+          data: r.data
+        }));
       
       if (resultadosAPI.length === 0) {
-        alert('Nenhuma conta foi carregada com sucesso. Verifique a chave API e números de conta.');
+        alert('Nenhuma conta foi carregada com sucesso. Verifique os logs no Vercel.');
         setLoadingSantander(false);
         return;
       }
@@ -287,7 +270,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         // Buscar informações da conta no accountsMap
         const lookupKey = `0033_${accountNumber}`;
         const contaInfo = accountsMap[lookupKey] || {
-          fantasia: 'Conta Santander',
+          fantasia: santanderConfig.filial,
           cnpj: '00000000000000'
         };
         
@@ -296,7 +279,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         
         return {
           summary: {
-            fantasia: capitalizarNome(contaInfo.fantasia),
+            fantasia: capitalizarNome(contaInfo.fantasia || santanderConfig.filial),
             banco: 'Santander',
             conta: accountNumber,
             cnpj: contaInfo.cnpj,
@@ -349,7 +332,14 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
       if (results) {
         setResults(prev => ({
           ...prev,
-          results: [...prev.results, ...contasComProjecao]
+          results: [...prev.results, ...contasComProjecao],
+          consolidado: {
+            ...prev.consolidado,
+            identificados: prev.consolidado.identificados + contasComProjecao.length,
+            saldoTotal: prev.consolidado.saldoTotal + contasComProjecao.reduce((sum, c) => sum + c.saldoInicial, 0),
+            despesasTotal: prev.consolidado.despesasTotal + contasComProjecao.reduce((sum, c) => sum + (c.despesasPrevistas || 0), 0),
+            saldoFinalTotal: prev.consolidado.saldoFinalTotal + contasComProjecao.reduce((sum, c) => sum + c.saldoFinal, 0)
+          }
         }));
       } else {
         // Criar estrutura de results se não existir
@@ -366,13 +356,25 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
         });
       }
       
-      alert(`${contasComProjecao.length} conta(s) Santander carregada(s) com sucesso!`);
+      alert(`✅ ${contasComProjecao.length} conta(s) Santander carregada(s) com sucesso!`);
       setModalSantanderAPI(false);
-      setSantanderConfig(prev => ({ ...prev, accountNumbers: '' }));
+      setSantanderConfig(prev => ({ ...prev, accountNumber: '' }));
       
     } catch (error) {
-      console.error('Erro ao buscar saldos Santander:', error);
-      alert('Erro ao conectar com API Santander: ' + error.message);
+      console.error('❌ Erro completo:', error);
+      console.error('❌ Stack:', error.stack);
+      
+      let errorMessage = 'Erro ao conectar com API Santander: ' + error.message;
+      
+      if (error.message === 'Failed to fetch') {
+        errorMessage += '\n\n🔍 Possíveis causas:\n';
+        errorMessage += '1. Pasta /api não foi deployada\n';
+        errorMessage += '2. Vercel não reconheceu a serverless function\n';
+        errorMessage += '3. Problema de rede\n\n';
+        errorMessage += '📋 Abra o console (F12) e verifique os logs!';
+      }
+      
+      alert(errorMessage);
     } finally {
       setLoadingSantander(false);
     }
