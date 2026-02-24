@@ -9,6 +9,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   const [detalheAberto, setDetalheAberto] = useState(null);
   const [mostrarSugestoes, setMostrarSugestoes] = useState(true);
   const [ordenacao, setOrdenacao] = useState({ campo: 'saldoFinal', direcao: 'asc' });
+  const [transferenciasConfirmadas, setTransferenciasConfirmadas] = useState(new Set());
 
   // Função auxiliar para buscar campo
   const buscarCampo = (item, ...nomes) => {
@@ -103,6 +104,47 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     if (!cnpj) return null;
     const limpo = cnpj.replace(/[^\d]/g, '');
     return limpo.substring(0, 8);
+  };
+
+  // Toggle de confirmação de transferência
+  const toggleTransferencia = (indice) => {
+    setTransferenciasConfirmadas(prev => {
+      const novo = new Set(prev);
+      if (novo.has(indice)) {
+        novo.delete(indice);
+      } else {
+        novo.add(indice);
+      }
+      return novo;
+    });
+  };
+
+  // Calcular saldos ajustados com transferências confirmadas
+  const calcularSaldosComTransferencias = (contas, sugestoes) => {
+    const ajustes = {}; // { fantasia_banco: ajuste }
+    
+    sugestoes.forEach((s, i) => {
+      if (transferenciasConfirmadas.has(i) && s.prioridade !== 3) {
+        // Chave origem
+        const keyOrigem = `${s.de}_${s.deBanco}`;
+        ajustes[keyOrigem] = (ajustes[keyOrigem] || 0) - s.valor;
+        
+        // Chave destino
+        const keyDestino = `${s.para}_${s.paraBanco}`;
+        ajustes[keyDestino] = (ajustes[keyDestino] || 0) + s.valor;
+      }
+    });
+    
+    return contas.map(c => {
+      const key = `${c.summary.fantasia}_${c.summary.banco}`;
+      const ajuste = ajustes[key] || 0;
+      return {
+        ...c,
+        saldoFinalAjustado: c.saldoFinal + ajuste,
+        temAjuste: ajuste !== 0,
+        ajuste
+      };
+    });
   };
 
   // Função para sugerir transferências
@@ -225,7 +267,11 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
 
   const fmt = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const resultadosOrdenados = results ? [...results.results].sort((a, b) => {
+  const sugestoesTransferencia = results ? sugerirTransferencias(results.results) : [];
+  
+  const resultadosComAjustes = results ? calcularSaldosComTransferencias(results.results, sugestoesTransferencia) : [];
+  
+  const resultadosOrdenados = resultadosComAjustes.length > 0 ? [...resultadosComAjustes].sort((a, b) => {
     const dir = ordenacao.direcao === 'asc' ? 1 : -1;
     switch (ordenacao.campo) {
       case 'fantasia':
@@ -243,7 +289,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
     }
   }) : [];
 
-  const sugestoesTransferencia = results ? sugerirTransferencias(resultadosOrdenados) : [];
+
 
   const toggleOrdenacao = (campo) => {
     setOrdenacao(prev => ({
@@ -406,7 +452,18 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                             'bg-red-50 border border-red-200'
                           }`}
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-3">
+                            {/* Checkbox para confirmar transferência */}
+                            {s.prioridade !== 3 && (
+                              <label className="flex items-center cursor-pointer flex-shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={transferenciasConfirmadas.has(i)}
+                                  onChange={() => toggleTransferencia(i)}
+                                  className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                />
+                              </label>
+                            )}
                             <div className="flex-1">
                               <div className="flex items-center gap-2 text-sm flex-wrap">
                                 <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
@@ -427,9 +484,14 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                                 )}
                                 <span className="font-semibold">{s.para}</span>
                                 <span className="text-gray-500">({s.paraBanco})</span>
+                                {transferenciasConfirmadas.has(i) && (
+                                  <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded font-semibold">
+                                    ✓ Confirmada
+                                  </span>
+                                )}
                               </div>
                             </div>
-                            <div className="text-right ml-4">
+                            <div className="text-right flex-shrink-0">
                               <div className="text-lg font-bold text-blue-700">
                                 R$ {fmt(s.valor)}
                               </div>
@@ -477,6 +539,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                         >
                           Saldo Final <SortIcon campo="saldoFinal" />
                         </th>
+                        <th className="border border-indigo-500 px-3 py-2 text-right">Saldo Ajustado</th>
                         <th className="border border-indigo-500 px-3 py-2 text-center">Status</th>
                         <th className="border border-indigo-500 px-3 py-2 text-center no-print">Projeção</th>
                       </tr>
@@ -505,6 +568,20 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                           <td className={`border border-gray-200 px-3 py-2 text-right font-bold ${r.ficaNegativo ? 'text-red-600' : 'text-emerald-600'}`}>
                             {formatBRL(r.saldoFinal)}
                           </td>
+                          <td className="border border-gray-200 px-3 py-2 text-right">
+                            {r.temAjuste ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <span className={`font-bold ${r.saldoFinalAjustado < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                  {formatBRL(r.saldoFinalAjustado)}
+                                </span>
+                                <span className={`text-xs ${r.ajuste > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  ({r.ajuste > 0 ? '+' : ''}{formatBRL(r.ajuste)})
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </td>
                           <td className="border border-gray-200 px-3 py-2 text-center">
                             {r.ficaNegativo ? (
                               <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded font-semibold">
@@ -529,7 +606,7 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
                         </tr>
                         {detalheAberto === i && r.projecaoDiaria && (
                           <tr>
-                            <td colSpan={8} className="border border-gray-200 p-0">
+                            <td colSpan={9} className="border border-gray-200 p-0">
                               <div className="p-4 bg-gray-50">
                                 <h4 className="font-semibold text-sm mb-2 text-gray-700">
                                   📅 Projeção Diária - {r.summary.fantasia} ({r.summary.banco})
