@@ -28,8 +28,98 @@ export default function App() {
   const [tipoBusca, setTipoBusca] = useState('cnpj'); // 'cnpj' ou 'razao'
   const [registrosEncontrados, setRegistrosEncontrados] = useState([]);
   const [valoresAdicionais, setValoresAdicionais] = useState({});
+  const [ofxState, setOfxState] = useState(null);
 
   // Ordem customizada das filiais
+  
+  // Salvar estado do dashboard
+  const salvarDashboard = () => {
+    try {
+      const estado = {
+        versao: '1.0',
+        dataExportacao: new Date().toISOString(),
+        dados,
+        filialSelecionada,
+        filiaisSelecionadas,
+        datasSelecionadas,
+        valoresAdicionais,
+        ofxState,
+        // Estados de UI
+        tabelaTransposta,
+        tabela2Transposta,
+        tabela3Transposta,
+        tabela4Transposta,
+        tabela5Transposta,
+        tabela1Expandida,
+        tabela2Expandida,
+        tabela3Expandida,
+        tabela4Expandida,
+        tabela5Expandida
+      };
+      
+      const blob = new Blob([JSON.stringify(estado, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      alert('✅ Dashboard salvo com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar:', error);
+      alert('Erro ao salvar dashboard: ' + error.message);
+    }
+  };
+  
+  // Carregar estado do dashboard
+  const carregarDashboard = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const estado = JSON.parse(e.target.result);
+        
+        // Validar versão
+        if (!estado.versao) {
+          throw new Error('Arquivo inválido ou versão incompatível');
+        }
+        
+        // Restaurar estados
+        setDados(estado.dados || []);
+        setFilialSelecionada(estado.filialSelecionada || 'todas');
+        setFiliaisSelecionadas(estado.filiaisSelecionadas || []);
+        setDatasSelecionadas(estado.datasSelecionadas || []);
+        setValoresAdicionais(estado.valoresAdicionais || {});
+        setOfxState(estado.ofxState || null);
+        
+        // Restaurar UI
+        if (estado.tabelaTransposta !== undefined) setTabelaTransposta(estado.tabelaTransposta);
+        if (estado.tabela2Transposta !== undefined) setTabela2Transposta(estado.tabela2Transposta);
+        if (estado.tabela3Transposta !== undefined) setTabela3Transposta(estado.tabela3Transposta);
+        if (estado.tabela4Transposta !== undefined) setTabela4Transposta(estado.tabela4Transposta);
+        if (estado.tabela5Transposta !== undefined) setTabela5Transposta(estado.tabela5Transposta);
+        if (estado.tabela1Expandida !== undefined) setTabela1Expandida(estado.tabela1Expandida);
+        if (estado.tabela2Expandida !== undefined) setTabela2Expandida(estado.tabela2Expandida);
+        if (estado.tabela3Expandida !== undefined) setTabela3Expandida(estado.tabela3Expandida);
+        if (estado.tabela4Expandida !== undefined) setTabela4Expandida(estado.tabela4Expandida);
+        if (estado.tabela5Expandida !== undefined) setTabela5Expandida(estado.tabela5Expandida);
+        
+        alert(`✅ Dashboard carregado!\nData: ${new Date(estado.dataExportacao).toLocaleString()}`);
+        event.target.value = '';
+      } catch (error) {
+        console.error('Erro ao carregar:', error);
+        alert('Erro ao carregar dashboard: ' + error.message);
+        event.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const ordemFiliais = {
     'Goiania': 1,
     'Villages': 2,
@@ -1073,6 +1163,37 @@ export default function App() {
                 <p className="mt-2 text-gray-600">Processando arquivo...</p>
               </div>
             )}
+            
+            {/* Botões Salvar/Carregar Dashboard */}
+            <div className="flex gap-3 mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <button
+                onClick={salvarDashboard}
+                disabled={!dados || dados.length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                Salvar Dashboard
+              </button>
+              
+              <label className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Carregar Dashboard
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={carregarDashboard}
+                  className="hidden"
+                />
+              </label>
+              
+              <span className="text-xs text-gray-500 self-center ml-2">
+                💾 Salve seu trabalho e continue depois
+              </span>
+            </div>
 
             {dados.length > 0 && (
               <>
@@ -2178,7 +2299,7 @@ export default function App() {
             )}
 
             {/* Seção Extratos OFX - no final */}
-            {dados.length > 0 && <OFXSection dados={dados} datasVisiveis={datasVisiveis} />}
+            {dados.length > 0 && <OFXSection dados={dados} datasVisiveis={datasVisiveis} savedState={ofxState} onStateChange={setOfxState} />}
 
             {dados.length === 0 && !loading && (
               <div className="text-center py-12 text-gray-500">
