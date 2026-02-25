@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { parseMultipleOFX, readOFXFile, formatBRL } from '../utils/ofxParser';
 import accountsMap from '../data/accountsMap';
 
-export default function OFXSection({ dados = [], datasVisiveis = [] }) {
+export default function OFXSection({ dados = [], datasVisiveis = [], savedState = null, onStateChange = null }) {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [expandida, setExpandida] = useState(true);
@@ -19,6 +19,26 @@ export default function OFXSection({ dados = [], datasVisiveis = [] }) {
   });
   const [filiaisDisponiveis, setFiliaisDisponiveis] = useState([]);
   const [loadingSantander, setLoadingSantander] = useState(false);
+
+  // Restaurar estado salvo
+  React.useEffect(() => {
+    if (savedState && savedState.results) {
+      setResults(savedState.results);
+      if (savedState.transferenciasConfirmadas) {
+        setTransferenciasConfirmadas(savedState.transferenciasConfirmadas);
+      }
+    }
+  }, [savedState]);
+  
+  // Salvar estado quando mudar
+  React.useEffect(() => {
+    if (onStateChange && results) {
+      onStateChange({
+        results,
+        transferenciasConfirmadas
+      });
+    }
+  }, [results, transferenciasConfirmadas]);
 
   // Normalizar nome da filial (remover "Drops " do início)
   const normalizarNomeFilial = (nome) => {
