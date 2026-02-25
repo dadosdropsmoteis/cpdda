@@ -56,6 +56,23 @@ export default function OFXSection({ dados = [], datasVisiveis = [], savedState 
     
     // Mapeamento de nomes especiais
     const mapeamentos = {
+      // Nomes do CSV Santander (sem espaço)
+      'barretosexpress': 'barretos express',
+      'caxiasdosul': 'caxias do sul',
+      'novohamburgo': 'novo hamburgo',
+      'palhoca': 'palhoca',
+      'poazonanorte': 'poa zona norte',
+      'poazonasul': 'poa zona sul',
+      'portoalegre': 'porto alegre',
+      'ribeiraopreto': 'ribeirao preto',
+      'riopreto': 'rio preto',
+      'rv': 'rv bangalo',
+      'valedossinos': 'vale dos sinos',
+      'villages': 'villages',
+      'xangai': 'xangai',
+      'zaya': 'zaya',
+      'zeax': 'zeax',
+      // Mapeamentos originais
       'barretos matriz': 'barretos',
       'barretos express': 'barretos express',
       'drops rio preto': 'rio preto',
@@ -77,7 +94,6 @@ export default function OFXSection({ dados = [], datasVisiveis = [], savedState 
       'brasília': 'brasilia',
       'brasilia': 'brasilia',
       'xangai (sleo express)': 'xangai',
-      'xangai': 'xangai',
       'champagne': 'tubarao',
       'tubarao': 'tubarao',
       'tubarão': 'tubarao',
