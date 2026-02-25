@@ -421,20 +421,26 @@ export default function OFXSection({ dados = [], datasVisiveis = [], savedState 
       }).filter(c => c.filial && !isNaN(c.saldo));
       
       // Converter para formato OFX
-      const contasFormatadas = contas.map(c => ({
-        summary: {
-          fantasia: capitalizarNome(c.filial),
-          banco: 'Santander',
-          conta: 'CSV',
-          cnpj: '00000000000000',
-          bankName: 'Santander',
-          bankId: '0033'
-        },
-        saldo: c.saldo,
-        saldoInicial: c.saldo,
-        transactions: [],
-        isCSVImport: true
-      }));
+      const contasFormatadas = contas.map(c => {
+        // Aplicar mesma normalização que OFX usa
+        const nomeNormalizado = mapearNomeFilial(c.filial);
+        const nomeCapitalizado = capitalizarNome(nomeNormalizado);
+        
+        return {
+          summary: {
+            fantasia: nomeCapitalizado,
+            banco: 'Santander',
+            conta: 'CSV',
+            cnpj: '00000000000000',
+            bankName: 'Santander',
+            bankId: '0033'
+          },
+          saldo: c.saldo,
+          saldoInicial: c.saldo,
+          transactions: [],
+          isCSVImport: true
+        };
+      });
       
       // Calcular projeções
       const contasComProjecao = contasFormatadas.map(conta => {
@@ -980,6 +986,25 @@ export default function OFXSection({ dados = [], datasVisiveis = [], savedState 
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
                 <p className="mt-3 text-sm">Processando arquivos OFX...</p>
+              </div>
+            )}
+            
+            {/* Botão Importar CSV - Sempre visível após carregar Excel */}
+            {dados && dados.length > 0 && (
+              <div className="mb-4 no-print">
+                <label className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg cursor-pointer transition-colors">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Importar CSV Saldos
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVUpload}
+                    className="hidden"
+                  />
+                </label>
+                <span className="text-xs text-gray-500 ml-3">CSV gerado pelo script de saldos Santander</span>
               </div>
             )}
 
